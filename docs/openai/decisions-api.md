@@ -76,7 +76,7 @@ The snapshot contains:
 
 - the medicine, its lead time, safety buffer, and donor reserve
 - the target facility: stock, daily use, days of stock, threshold, risk level, gap, projected stockout date, report age, verification flag, count-check result, inbound transfers, and the recent weekly dispensing trend
-- ranked donor candidates: distance, stock, daily use, transferable units after reserve, share of the gap each can cover, and verification flag
+- eligible donors only, as defined by the engine rules (verified, count check clean, above reserve, within 80 km). Each donor has its distance, stock, daily use, transferable units after reserve and open outbound transfers, and the share of the gap it can cover. Donors are ranked by gap cover per kilometre.
 - upstream supply status and district warehouse cover
 - the decision policy: "Recommend one next action. A district officer approves every transfer, indent, or escalation."
 

@@ -8,10 +8,17 @@ The pharmacist does not need to fill in a form. The officer does not need to rea
 
 ## Built on OpenAI
 
-| OpenAI API | Role in Dawai Dost |
-| --- | --- |
-| **Decisions API** (`gpt-6-luna`) | The decision engine. Selects one of four district actions and returns a probability for each. |
-| **Realtime API** (`gpt-realtime-2.1`) | The voice check-in. A natural conversation in Hindi over WebRTC, with a short-lived client secret. |
+| OpenAI API | Model | Role in Dawai Dost |
+| --- | --- | --- |
+| **Decisions API** | `gpt-6-luna` | The decision engine. One call answers six questions: the next action (one of four, with a probability for each), urgency, recount need, indent timing, best donor, and whether a transfer closes the gap. A batch route streams decisions for the whole district. |
+| **Realtime API** | `gpt-realtime-2.1` | The voice check-in. A natural conversation in Hindi over WebRTC, with a short-lived client secret. |
+| **Responses API** (structured outputs) | `gpt-5.4-mini`, `gpt-6-sol`, `gpt-5.5` | Writes from computed facts: decision explanations and the morning brief in English and Hindi, indent justifications, and the escalation memo to the state. Every memo number is checked against the facts. |
+| **Responses API** (function tools, streaming) | `gpt-5.5` | "Ask the district": answers free questions only from tool results, and shows each tool call. |
+| **Text to speech** | `gpt-4o-mini-tts` | Reads the brief and public availability answers aloud in Hindi or English. |
+| **Speech to text** | `gpt-4o-mini-transcribe` | Transcribes a spoken "Is my medicine in stock?" question from a patient or ASHA worker. |
+| **Evals** | `gpt-6-luna` and others | 50 labeled cases grade the Decisions API against a written policy and against the rule-based fallback. |
+
+Code calculates every stock number. The models choose and write. The officer approves. Every AI feature has a labeled fallback, so the demo runs without a key.
 
 Full documentation is in [`docs/`](docs/README.md). Start with the [Decisions API design](docs/openai/decisions-api.md) and the [demo walkthrough](docs/product/demo-walkthrough.md).
 
@@ -94,7 +101,7 @@ In the demo, a shortage is found and solved in less than two minutes, before any
 
 ## Technical design
 
-The stack is Next.js 16 (App Router), React 19, and TypeScript. Tests use Vitest.
+The stack is Next.js 16 (App Router), React 19, TypeScript, MapLibre GL, d3, and the official `openai` SDK. Tests use Vitest.
 
 ### Design principle: code calculates, the model decides, the human approves
 
@@ -102,56 +109,99 @@ We gave each part of the system the task it does best.
 
 | Part | Responsibility | Reason |
 | --- | --- | --- |
-| Deterministic code | Days of stock, safe surplus, reserve rules | Arithmetic must be exact and easy to audit. A language model must not invent stock numbers. |
-| Decisions API | Select one action from four defined actions | Choosing the right response needs judgment across many signals. A closed choice set keeps the output safe and machine-readable. |
+| Deterministic code | Days of stock, risk level, count check, safe surplus, donor ranking, transfer plan, indent quantity | Arithmetic must be exact and easy to audit. A language model must not invent stock numbers. |
+| Decisions API | Select one action from four defined actions, with urgency and supporting judgments | Choosing the right response needs judgment across many signals. A closed choice set keeps the output safe and machine-readable. |
+| Responses API | Explain, brief, draft, and answer, from computed facts | Officers need clear words in English and Hindi. Structured outputs keep the text typed and checkable. |
 | District officer | Approve or reject the action | Medicine transfers and orders need an accountable person. |
 
 ### OpenAI Decisions API
 
-The Decisions API is the center of the product. `POST /api/decisions` builds a compact decision snapshot on the server. The snapshot contains the target clinic, its verified count, daily use, days of stock, lead time, safety buffer, and the safe surplus at each nearby clinic.
+The Decisions API is the center of the product. For each at-risk clinic and medicine, code builds a facts-only snapshot: stock, daily use, days of stock, threshold, gap, report age, count-check result, inbound transfers, eligible donors with their safe surplus, upstream supply status, and warehouse cover.
 
-The server sends this snapshot to the Decisions API with one `choice` question and the four allowed actions. Each action has a short description of when it applies. The instructions tell the model to prefer a local transfer when enough safe surplus exists, and not to treat a transfer as a fix for an upstream shortage.
+`POST /api/decisions/district` sends the snapshot in **one call with six questions**:
 
-The API returns the selected action and a probability for each choice. The dashboard shows these probabilities, so the officer can see how strong the recommendation is. A 0.82 transfer recommendation and a 0.40 recommendation lead to different conversations.
+| Question | Type | Answer |
+| --- | --- | --- |
+| `next_action` | choice | `verify_count`, `transfer_surplus`, `draft_indent`, or `escalate_supply_gap`, with a probability for each |
+| `urgency` | score | `monitor`, `this_week`, or `today` |
+| `recount_needed` | predicate | Probability that the count must be checked first |
+| `indent_arrives_in_time` | predicate | Probability that a normal indent arrives before the shelf is empty |
+| `donor` | choice | The best donor clinic, or `false` for "no suitable donor" |
+| `transfer_bridges_gap` | predicate | Probability that the transfer alone closes the gap |
+
+`POST /api/decisions/batch` runs up to 80 snapshots with bounded concurrency and streams each decision as it finishes. The snapshot builder also supports **what-if** analysis: for example, remove the best donor or mark upstream supply as delayed, and see how the recommendation changes.
 
 We chose the Decisions API instead of a free-text chat model for three reasons:
 
 1. **Bounded output.** The response is always one valid action. There is no free text to parse and no risk of an invented action.
-2. **Confidence signal.** Per-choice probabilities give the officer a confidence value they can act on.
-3. **Validation.** The server accepts a response only if it names one of the four actions. Any other response triggers a safe fallback.
+2. **Confidence signal.** Per-choice probabilities give the officer a confidence value they can act on. A 0.82 transfer recommendation and a 0.40 recommendation lead to different conversations.
+3. **Validation.** The server accepts a response only if it names one of the four actions and an offered donor. Any other response triggers a labeled fallback.
+
+Details: [Decisions API](docs/openai/decisions-api.md). Quality: [Decision evals](docs/openai/evals.md).
+
+### Responses API
+
+The Responses API writes text from facts that code has already computed. Each feature uses strict structured outputs and has a template fallback.
+
+- **Explain** (`/api/explain`): why the Decisions API chose this action, in English and Hindi. It cannot change the decision.
+- **Morning brief** (`/api/briefing`): a short brief for the officer, in English and Hindi, with optional speech (`/api/briefing/speech`).
+- **Ask the district** (`/api/ask`): free questions answered only from function-tool results (`get_stock`, `list_at_risk`, `find_donors`, `get_transfers`, `draft_transfer_proposal`), streamed with each tool call visible.
+- **Indent** (`/api/indent`): code sets every quantity; the model writes one justification per line and a covering note.
+- **Escalation memo** (`/api/escalations/memo`): a formal note to the state. The server rejects any memo that contains a number not present in the computed facts.
+
+Details: [Responses API](docs/openai/responses-api.md).
 
 ### Realtime voice
 
 `POST /api/realtime/session` creates a short-lived client secret on the server. The browser uses this secret to open a WebRTC connection to the OpenAI Realtime API (`gpt-realtime-2.1`). The standard API key never leaves the server.
 
-The voice session plays a pharmacist who answers in Hindi. Its instructions limit it to the supplied facts, so it confirms the count and does not invent numbers or give medical advice.
+The voice session speaks Hindi. Its instructions limit it to the supplied facts, so it does not invent numbers or give medical advice. Details: [Realtime API](docs/openai/realtime-api.md).
+
+### Public availability check
+
+`POST /api/find/ask` lets a patient or ASHA worker ask, by voice or text, if a medicine is in stock nearby. Speech to text (`gpt-4o-mini-transcribe`) uses a vocabulary hint with local medicine and place names. The Responses API maps the question to medicine and place ids. Code builds the answer from availability bands (`available`, `low`, `out`) and never exposes shelf counts. `POST /api/find/speak` reads the answer aloud. Details: [Audio](docs/openai/audio.md).
 
 ### Reliability
 
-Every external call has a labeled fallback. If the API key is missing, the upstream service is unavailable, or the response is not valid, the server returns a deterministic recommendation from the same stock rules. The response includes a `source` field (`live` or `demo_fallback`) and a reason. The dashboard shows this label clearly. The demo always works, and it never shows fallback data as live data.
-
-If the browser cannot start live audio, the dashboard plays a scripted sample call and continues the workflow.
+Every external call has a labeled fallback. If the API key is missing, the upstream service is unavailable, or the response is not valid, the server returns a deterministic result from the same rules. Each response includes a `source` field and a reason. The demo always works, and it never shows fallback data as live data. `GET /api/health` reports whether the app runs in `live` or `demo` mode.
 
 ### Tests
 
-The test suite covers:
-
-- days-of-stock calculation, including zero consumption
-- safe surplus with the donor reserve
-- the decision snapshot content
-- mapping of a live Decisions API answer and its probabilities
-- fallback when credentials are missing or the upstream API rejects the request
-- rejection of malformed requests
-
-All upstream calls are mocked, so the tests run without an API key.
+Vitest covers the stock engine, the transfer planner, the reducer and simulation clock, the Decisions API routes (district, batch, and the original route), every Responses API route, escalation gap detection and memo checks, the Find medicine matcher and answers, and the eval metrics and runner. All upstream calls are mocked, so the tests run without an API key. Details: [Testing](docs/architecture/testing.md).
 
 ### Routes
 
+**Pages**
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Command center: today's risks, the AI inbox, the district map, and live activity |
+| `/decisions` | Every Decisions API recommendation, with probabilities, waiting for approval |
+| `/map` | Every clinic in the district by risk, with transfers on the road |
+| `/transfers` | Medicine moving between clinics, from proposal to delivery |
+| `/voice` | Weekly Hindi stock calls with pharmacists |
+| `/stock` | Days of stock for every clinic and medicine |
+| `/briefing` | The district brief, questions, and indents |
+| `/activity` | Who did what, and when |
+| `/about` | How the loop works, the four actions, and the research |
+
+**API**
+
 | Route | Method | Purpose |
 | --- | --- | --- |
-| `/` | `GET` | District medicine dashboard |
-| `/api/decisions` | `POST` | Select the next action with the Decisions API |
-| `/api/realtime/session` | `POST` | Create a short-lived Realtime client secret |
+| `/api/decisions/district` | `POST` | One clinic and medicine: one Decisions API call with six questions |
+| `/api/decisions/batch` | `POST` | Many decisions, streamed as NDJSON |
+| `/api/decisions` | `POST` | Original single-question decision for the three-clinic scenario |
+| `/api/explain` | `POST` | Explain a decision in English and Hindi (Responses API) |
+| `/api/briefing` | `POST` | Morning brief in English and Hindi (Responses API) |
+| `/api/briefing/speech` | `POST` | Brief as MP3 audio (TTS) |
+| `/api/ask` | `POST` | Ask the district: Responses API with function tools, streamed as NDJSON |
+| `/api/indent` | `POST` | Consumption-based indent with written justifications |
+| `/api/escalations/memo` | `POST` | Escalation memo to the state, with a number check |
+| `/api/find/ask` | `POST` | Public availability question, by voice or text |
+| `/api/find/speak` | `POST` | Public availability answer as MP3 audio (TTS) |
+| `/api/realtime/session` | `POST` | Short-lived Realtime client secret |
+| `/api/health` | `GET` | Live or demo mode, and model names |
 
 ## Run locally
 
@@ -172,7 +222,7 @@ OPENAI_API_KEY=your_api_key
 OPENAI_DECISIONS_MODEL=gpt-6-luna
 ```
 
-Restart the dev server after you change the environment values. Without a key, the app runs the full workflow with labeled demo responses.
+Each other model has an optional override. See [Configuration](docs/openai/overview.md#configuration). Restart the dev server after you change the environment values. Without a key, the app runs the full workflow with labeled demo responses.
 
 Run the checks:
 
@@ -182,25 +232,30 @@ npm run lint
 npm run build
 ```
 
+Run the Decisions API evals (needs a key):
+
+```powershell
+node --env-file=.env.local --experimental-transform-types --no-warnings --import ./scripts/evals/register.mjs scripts/evals/run.ts
+```
+
 ## Prototype scope
 
-This is a hackathon prototype. The clinics, counts, and consumption values in the demo are synthetic. Approval changes the dashboard state only. The prototype does not contact a clinic, submit an order, or dispatch medicine. State is in memory and resets when the server restarts. The voice call is a browser simulation of the weekly phone call, and the demo uses the seeded counts after the call. Automatic recount checks against earlier reports are part of the design but are not in this build.
+This is a hackathon prototype. **All facility data is synthetic.** The block names are real blocks of Sehore district; the facilities, people, phone numbers, and stock counts are fictional. Approval changes the dashboard state only. The prototype does not contact a clinic, submit an order, send a memo, or dispatch medicine. State lives in the browser and resets on reload. A simulation clock moves time forward so a judge can watch a transfer go from approval to delivery. The voice call is a browser simulation of the weekly phone call.
 
 ## Roadmap
 
-1. **Phone calls.** Connect a telephony provider such as ElevenLabs so the system calls each PHC every week on a normal phone line.
-2. **More medicines and languages.** Add a tracer list of essential medicines and support for more Indian languages.
+1. **Phone calls.** Connect the Realtime API to a phone line over SIP, or use a telephony partner, so the system calls each PHC every week on a normal phone line.
+2. **More languages.** Support more Indian languages for other states.
 3. **District data.** Read dispatch data from the state drug distribution system to improve consumption and lead-time values.
-4. **Expiry matching.** Move near-expiry stock to clinics that will use it before it expires.
-5. **Durable audit trail.** Store reports, alerts, and approvals in a database with user roles.
-6. **Patient and ASHA checks.** Let ASHA workers and patients ask by voice if a medicine is in stock before they travel.
-7. **Pilot.** Run a pilot at a group of PHCs in one district. Measure report completion, days of warning before a stockout, time to approved action, transfers completed, and stockout-days per medicine against a baseline period.
+4. **Durable audit trail.** Store reports, decisions, approvals, and escalations in a database with user roles.
+5. **Published eval results.** Run the eval set against the live Decisions API and publish the numbers.
+6. **Pilot.** Run a pilot at a group of PHCs in one district. Measure report completion, days of warning before a stockout, time to approved action, transfers completed, and stockout-days per medicine against a baseline period.
 
 ## Documentation
 
 | Section | Documents |
 | --- | --- |
-| OpenAI platform | [Overview](docs/openai/overview.md) · [Decisions API](docs/openai/decisions-api.md) · [Realtime API](docs/openai/realtime-api.md) · [Prompt and choice design](docs/openai/prompt-design.md) |
+| OpenAI platform | [Overview](docs/openai/overview.md) · [Decisions API](docs/openai/decisions-api.md) · [Decision evals](docs/openai/evals.md) · [Responses API](docs/openai/responses-api.md) · [Realtime API](docs/openai/realtime-api.md) · [Audio](docs/openai/audio.md) · [Prompt and choice design](docs/openai/prompt-design.md) |
 | Research | [Problem landscape](docs/research/problem-landscape.md) · [Prior art](docs/research/prior-art.md) · [Why this problem](docs/research/why-this-problem.md) · [Users](docs/research/users.md) |
 | Architecture | [System overview](docs/architecture/overview.md) · [District model and state](docs/architecture/district-model.md) · [Stock calculations](docs/architecture/stock-math.md) · [Reliability and safety](docs/architecture/reliability-and-safety.md) · [Testing](docs/architecture/testing.md) |
 | Product | [Demo walkthrough](docs/product/demo-walkthrough.md) · [Roadmap](docs/product/roadmap.md) · [Impact and pilot design](docs/product/impact-and-pilot.md) |
