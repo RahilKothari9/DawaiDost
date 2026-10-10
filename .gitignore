@@ -11,3 +11,4 @@ out/
 coverage/
 *.tsbuildinfo
 .next-preview/
+.next-build/
