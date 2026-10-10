@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Activity, ArrowDownRight, ArrowLeftRight, ArrowUpRight, AudioLines, BadgeCheck,
-  Bell, Check, ChevronDown, CircleHelp, Clock3, FileText, HeartPulse, MapPin,
-  MoreHorizontal, PackageCheck, PhoneCall, Play, RotateCcw, ShieldCheck, Sparkles,
-  TriangleAlert, Volume2, Waves,
+  Activity, ArrowDownRight, ArrowLeftRight, ArrowUpRight, AudioLines, BadgeCheck, Bell, Check,
+  ChevronDown, CircleHelp, Clock3, FileText, HeartPulse, MapPin, MoreHorizontal,
+  PackageCheck, PhoneCall, Play, RotateCcw, ShieldCheck, Sparkles, TriangleAlert,
+  Volume2, Waves,
 } from "lucide-react";
 import { actionLabels, daysOfStock, getFallbackDecision, initialClinics, transferableSurplus, type Clinic, type DecisionAction } from "@/lib/scenario";
 import { requestDecision, type DecisionResult } from "@/lib/decision-client";
@@ -52,6 +52,7 @@ export default function Home() {
   const [decision, setDecision] = useState<DecisionResult | null>(null);
   const [decisionState, setDecisionState] = useState<"idle" | "thinking" | "complete">("idle");
   const [approved, setApproved] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
   const [errorNote, setErrorNote] = useState("");
   const [now, setNow] = useState("09:42");
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -60,6 +61,11 @@ export default function Home() {
   const promptIndexRef = useRef(0);
   const agentTextRef = useRef("");
   const completeCallRef = useRef<() => void>(() => undefined);
+
+  useEffect(() => {
+    document.querySelector(".timeline-strip")?.setAttribute("id", "activity-log");
+    document.querySelector(".page-footer")?.setAttribute("id", "about");
+  }, []);
 
   useEffect(() => {
     const update = () => setNow(new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()));
@@ -245,10 +251,10 @@ export default function Home() {
         <div className="workspace-switch"><span className="district-avatar">S</span><span><strong>Sehore district</strong><small>Madhya Pradesh, India</small></span><ChevronDown size={15} /></div>
         <p className="nav-label">OPERATIONS</p>
         <nav className="nav-list" aria-label="Main navigation">
-          <a className="nav-item active" href="#overview"><Activity size={17} /><span>Overview</span><span className="nav-count">03</span></a>
-          <a className="nav-item" href="#clinics"><PackageCheck size={17} /><span>Clinic stock</span></a>
-          <a className="nav-item" href="#decision"><ArrowLeftRight size={17} /><span>Transfer desk</span><span className="nav-dot" /></a>
-          <a className="nav-item" href="#timeline"><Clock3 size={17} /><span>Activity log</span></a>
+          <a className={`nav-item ${activeSection === "overview" ? "active" : ""}`} href="#overview" onClick={() => setActiveSection("overview")} aria-current={activeSection === "overview" ? "page" : undefined}><Activity size={17} /><span>Overview</span><span className="nav-count">03</span></a>
+          <a className={`nav-item ${activeSection === "clinics" ? "active" : ""}`} href="#clinics" onClick={() => setActiveSection("clinics")} aria-current={activeSection === "clinics" ? "page" : undefined}><PackageCheck size={17} /><span>Clinic stock</span></a>
+          <a className={`nav-item ${activeSection === "decision" ? "active" : ""}`} href="#decision" onClick={() => setActiveSection("decision")} aria-current={activeSection === "decision" ? "page" : undefined}><ArrowLeftRight size={17} /><span>Transfer desk</span><span className="nav-dot" /></a>
+          <a className={`nav-item ${activeSection === "activity-log" ? "active" : ""}`} href="#activity-log" onClick={() => setActiveSection("activity-log")} aria-current={activeSection === "activity-log" ? "page" : undefined}><Clock3 size={17} /><span>Activity log</span></a>
         </nav>
         <div className="sidebar-bottom">
           <div className="coverage-card"><div className="coverage-top"><span>WEEKLY COVERAGE</span><span>86%</span></div><div className="coverage-track"><span /></div><p>6 of 7 clinics reported this week</p></div>
@@ -308,7 +314,7 @@ export default function Home() {
           </div>
 
           <div className="lower-grid">
-            <section className="network-card" id="timeline">
+            <section className="network-card" id="nearby-clinics">
               <div className="panel-heading"><div><div className="eyebrow small"><span className="eyebrow-line" /> LOCAL NETWORK</div><h2>Nearby clinic stock</h2></div><button className="more-button" aria-label="More network options"><MoreHorizontal size={19} /></button></div>
               {clinics.filter((clinic) => clinic.id !== targetClinic.id).map((clinic) => {
                 const stockDays = daysOfStock(clinic.stock, clinic.dailyUse);
