@@ -13,7 +13,6 @@ export function DecisionsView() {
   const total = state.decisions.length;
   const counts = ACTION_ORDER.map((a) => state.decisions.filter((d) => d.action === a).length);
   const live = state.decisions.filter((d) => d.source === "live").length;
-  const pending = state.decisions.filter((d) => d.status === "pending").length;
   const f = state.facilities.find((x) => x.id === state.selectedFacilityId);
   const m = state.medicines.find((x) => x.id === state.selectedMedicineId);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -61,7 +60,7 @@ export function DecisionsView() {
       </Panel>
 
       <div className="decisions-layout">
-        <Panel title="Queue" kicker={`${pending} waiting · ${total} total`} flush>
+        <Panel flush aria-label="Decision queue">
           <DecisionQueue variant="full" />
         </Panel>
         <div className="sticky-col" ref={cardRef} style={{ scrollMarginTop: "calc(var(--topbar-h) + 12px)" }}>
