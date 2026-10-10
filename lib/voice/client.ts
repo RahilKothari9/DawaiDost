@@ -63,9 +63,24 @@ export function stopVoiceNote() {
 export const VOICE_CALL_EVENT = "dawai:voice-call";
 export type VoiceCallRequest = { facilityId: string; mode?: VoiceMode; autoStart?: boolean };
 
+let pendingCall: (VoiceCallRequest & { at: number }) | null = null;
+
+/**
+ * Hosts may remount the console when the selected facility changes, so the request is also parked
+ * for a few seconds and picked up by a freshly mounted console via takePendingVoiceCall().
+ */
 export function requestVoiceCall(detail: VoiceCallRequest) {
+  pendingCall = { ...detail, at: Date.now() };
   window.dispatchEvent(new CustomEvent<VoiceCallRequest>(VOICE_CALL_EVENT, { detail }));
-  document.getElementById("voice-console")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => document.getElementById("voice-console")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+}
+
+export function peekPendingVoiceCall(): VoiceCallRequest | null {
+  return pendingCall && Date.now() - pendingCall.at <= 4000 ? pendingCall : null;
+}
+
+export function clearPendingVoiceCall() {
+  pendingCall = null;
 }
 
 export type { VoiceReport };

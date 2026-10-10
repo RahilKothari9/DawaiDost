@@ -12,7 +12,7 @@ import {
 import { useDistrict } from "@/lib/district/store";
 import type { VoiceReport } from "@/lib/district/types";
 import { availabilityAnswerHindi, checkAvailability } from "@/lib/voice/availability";
-import { requestExtraction, requestGloss, playVoiceNote, stopVoiceNote, VOICE_CALL_EVENT, type VoiceCallRequest } from "@/lib/voice/client";
+import { requestExtraction, requestGloss, playVoiceNote, stopVoiceNote, clearPendingVoiceCall, peekPendingVoiceCall, VOICE_CALL_EVENT, type VoiceCallRequest } from "@/lib/voice/client";
 import { buildDirectory, buildFacilityFacts, hindiMedicineName } from "@/lib/voice/facts";
 import { fallbackExtract } from "@/lib/voice/fallbackExtract";
 import { callerAgentScript, callerPrompts, pharmacistSimScript, recountVoiceNote, type ScriptStep } from "@/lib/voice/scripts";
@@ -578,8 +578,7 @@ export function VoiceConsole(props: VoiceConsoleProps) {
 
   // ---------- external "Call now" requests ----------
   useEffect(() => {
-    const onRequest = (ev: Event) => {
-      const detail = (ev as CustomEvent<VoiceCallRequest>).detail;
+    const accept = (detail: VoiceCallRequest | null) => {
       if (!detail?.facilityId) return;
       setLocalFacilityId(detail.facilityId);
       const nextMode = detail.mode ?? "pharmacist_sim";
@@ -587,6 +586,8 @@ export function VoiceConsole(props: VoiceConsoleProps) {
       if (detail.autoStart !== false) pendingStartRef.current = { mode: nextMode };
       setTick((t) => t + 1);
     };
+    const onRequest = (ev: Event) => accept((ev as CustomEvent<VoiceCallRequest>).detail);
+    accept(peekPendingVoiceCall()); // request parked before a host remount
     window.addEventListener(VOICE_CALL_EVENT, onRequest);
     return () => window.removeEventListener(VOICE_CALL_EVENT, onRequest);
   }, []);
@@ -595,6 +596,7 @@ export function VoiceConsole(props: VoiceConsoleProps) {
     const pending = pendingStartRef.current;
     if (!pending || !facility || facility.id !== facilityId) return;
     pendingStartRef.current = null;
+    clearPendingVoiceCall();
     void startCall(pending.mode);
   });
 

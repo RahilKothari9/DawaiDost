@@ -44,8 +44,8 @@ export function CheckinRoster({ onStartCall, maxRows, className }: CheckinRoster
 
   const startCall = useCallback((facilityId: string, mode: VoiceMode = "pharmacist_sim") => {
     dispatch({ type: "SELECT_FACILITY", facilityId });
-    if (onStartCall) onStartCall(facilityId, mode);
-    else requestVoiceCall({ facilityId, mode, autoStart: true });
+    onStartCall?.(facilityId, mode);
+    requestVoiceCall({ facilityId, mode, autoStart: true });
   }, [dispatch, onStartCall]);
 
   const update = (facilityId: string, patch: Partial<RunOutcome>) =>

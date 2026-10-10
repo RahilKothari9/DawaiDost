@@ -1,4 +1,5 @@
 // Builds the facts-only snapshot the voice layer sends to the server. Pure + deterministic.
+import { istMidnightMs, weekStart } from "../district/engine";
 import type { DistrictState, Facility, Medicine, StockRecord } from "../district/types";
 import type { Directory, FacilityRef, MedicineFact, VoiceFacts } from "./types";
 
@@ -47,14 +48,29 @@ export function hindiMedicineName(name: string): string {
 
 const DAY_MS = 864e5;
 
-/** Plausible range for today's shelf count, derived from the last verified count, use rate, and weekly ledger. */
+/**
+ * Plausible range for today's shelf count. Mirrors the store's ledger check (engine.detectAnomaly applied
+ * after the week roll-over): expected = last week's closing + receipts this week − use since week start,
+ * so the call agent and the store reach the same verdict. Falls back to a straight projection without history.
+ */
 export function expectedRange(record: Pick<StockRecord, "stock" | "dailyUse" | "lastReportAt" | "history">, now: string) {
-  const elapsedDays = Math.max(0, (new Date(now).getTime() - new Date(record.lastReportAt).getTime()) / DAY_MS);
-  const expected = Math.max(0, Math.round(record.stock - record.dailyUse * elapsedDays));
-  const recentDispensed = record.history?.slice(-4).map((h) => h.dispensed) ?? [];
-  const weeklySwing = recentDispensed.length ? Math.max(...recentDispensed) - Math.min(...recentDispensed) : 0;
-  const tolerance = Math.max(5, Math.round(record.dailyUse * 3), Math.round(expected * 0.35), weeklySwing);
-  return { expected, expectedMin: Math.max(0, expected - tolerance), expectedMax: expected + tolerance, elapsedDays, tolerance };
+  const nowMs = new Date(now).getTime();
+  const elapsedDays = Math.max(0, (nowMs - new Date(record.lastReportAt).getTime()) / DAY_MS);
+  const h = record.history ?? [];
+  let expected: number;
+  if (h.length >= 1) {
+    const currentWeek = weekStart(now);
+    const last = h[h.length - 1];
+    const rolled = last.weekOf < currentWeek; // the store rolls a new week in on the next report
+    const prevClose = rolled ? record.stock : h.length >= 2 ? h[h.length - 2].closingStock : record.stock;
+    const received = rolled ? 0 : last.received ?? 0;
+    const sinceWeekStart = Math.min(7, Math.max(0, (nowMs - istMidnightMs(rolled ? currentWeek : last.weekOf)) / DAY_MS));
+    expected = Math.max(0, Math.round(prevClose + received - record.dailyUse * sinceWeekStart));
+  } else {
+    expected = Math.max(0, Math.round(record.stock - record.dailyUse * elapsedDays));
+  }
+  const tolerance = Math.max(3, Math.round(record.dailyUse * 3.5), Math.round(expected * 0.25));
+  return { expected, expectedMin: Math.max(0, Math.floor(expected - tolerance * 1.5)), expectedMax: Math.ceil(expected + tolerance), elapsedDays, tolerance };
 }
 
 /** Stable small hash for deterministic per-facility variation (schedules, simulated counts). */
