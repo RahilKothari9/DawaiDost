@@ -30,7 +30,7 @@ const factsView = z.object({
   medicine: z.object({ name: z.string().optional(), leadTimeDays: num.optional(), safetyBufferDays: num.optional() }).partial().optional(),
   target: z.object({
     name: z.string(), stock: num, dailyUse: num, daysOfStock: num.nullable(), thresholdDays: num, risk: z.string(), gapUnits: num,
-    verified: z.boolean(), reportFlag: z.string().nullable(), inboundUnits: num,
+    verified: z.boolean(), reportFlag: z.string().nullable(), inboundUnits: num, weeklyDispensedTrend: z.array(num),
   }).partial().optional(),
   donors: z.array(z.object({ facilityId: z.string(), name: z.string().optional(), distanceKm: num.optional(), transferable: num.optional(), coversGapPct: num.optional(), verified: z.boolean().optional() }).passthrough()).optional(),
   donorCandidates: z.array(z.object({ facilityId: z.string(), name: z.string().optional(), distanceKm: num.optional(), transferable: num.optional(), eligible: z.boolean().optional() }).passthrough()).optional(),
@@ -41,14 +41,35 @@ type FactsView = z.infer<typeof factsView>;
 
 export type DonorOption = { facilityId: string; name: string; distanceKm?: number; transferable: number; coversGapPct?: number; verified?: boolean };
 
+/**
+ * Donors that may be offered to the model and used by the fallback. Policy (same as the engine's donorCandidates):
+ * a donor whose count is unverified, anomaly-flagged, under recount, or marked ineligible is never eligible,
+ * and a donor with no safe surplus is never offered.
+ */
+export function isEligibleDonor(d: Record<string, unknown>): boolean {
+  if (d.verified === false || d.eligible === false || d.anomaly === true) return false;
+  if (d.recountRequested) return false;
+  const check = d.countCheck as { flagged?: unknown } | undefined;
+  if (check && check.flagged === true) return false;
+  return typeof d.transferable === "number" && d.transferable > 0;
+}
+
 export function extractDonors(snapshot: Record<string, unknown>, only?: string[]): DonorOption[] {
   const v = factsView.safeParse(snapshot);
   if (!v.success) return [];
-  const raw = v.data.donors ?? v.data.donorCandidates?.filter((d) => d.eligible !== false) ?? [];
-  const list = raw
-    .map((d) => ({ facilityId: d.facilityId, name: d.name ?? d.facilityId, distanceKm: d.distanceKm, transferable: d.transferable ?? 0, coversGapPct: (d as { coversGapPct?: number }).coversGapPct, verified: (d as { verified?: boolean }).verified }))
-    .filter((d) => d.transferable > 0 && (!only || only.includes(d.facilityId)));
-  return list.slice(0, 3);
+  const raw = (v.data.donors ?? v.data.donorCandidates ?? []) as Record<string, unknown>[];
+  return raw
+    .filter(isEligibleDonor)
+    .filter((d) => !only || only.includes(String(d.facilityId)))
+    .map((d) => ({
+      facilityId: String(d.facilityId),
+      name: typeof d.name === "string" ? d.name : String(d.facilityId),
+      distanceKm: typeof d.distanceKm === "number" ? d.distanceKm : undefined,
+      transferable: d.transferable as number,
+      coversGapPct: typeof d.coversGapPct === "number" ? d.coversGapPct : undefined,
+      verified: true,
+    }))
+    .slice(0, 3);
 }
 
 // ---------- question set ----------
@@ -195,7 +216,11 @@ export function fallbackDecision(snapshot: Record<string, unknown>, donors: Dono
   const gap = t.gapUnits ?? 0;
   const trace: string[] = [];
 
-  const doubtful = t.verified === false || !!t.reportFlag;
+  // Recorded daily use that contradicts the weekly dispensing trend (>2x off) makes the risk itself doubtful.
+  const trend = t.weeklyDispensedTrend ?? [];
+  const trendDaily = trend.length >= 3 ? trend.reduce((a, b) => a + b, 0) / trend.length / 7 : null;
+  const useMismatch = trendDaily !== null && trendDaily > 0 && !!t.dailyUse && (t.dailyUse / trendDaily > 2 || t.dailyUse / trendDaily < 0.5);
+  const doubtful = t.verified === false || !!t.reportFlag || useMismatch;
   const best = donors[0];
   const totalTransferable = donors.reduce((s, d) => s + d.transferable, 0);
   const transferCovers = !!best && (gap <= 0 || best.transferable >= gap * 0.6 || totalTransferable >= gap);
@@ -203,7 +228,7 @@ export function fallbackDecision(snapshot: Record<string, unknown>, donors: Dono
   const storeShort = typeof f.districtStore?.daysOfDistrictDemand === "number" && f.districtStore.daysOfDistrictDemand < lead;
 
   let action: DecisionAction;
-  if (doubtful) { action = "verify_count"; trace.push(`count doubtful: ${t.reportFlag ?? "not verified"}`); }
+  if (doubtful) { action = "verify_count"; trace.push(useMismatch && !t.reportFlag && t.verified !== false ? `daily use ${t.dailyUse} contradicts trend of ~${Math.round(trendDaily! * 10) / 10}/day` : `count doubtful: ${t.reportFlag ?? "not verified"}`); }
   else if (transferCovers) { action = "transfer_surplus"; trace.push(`${best!.name} can send ${best!.transferable} after reserve (gap ${gap})`); }
   else if (upstreamBad || storeShort) { action = "escalate_supply_gap"; trace.push(upstreamBad ? `upstream ${f.upstream?.status}` : "district store below lead-time demand"); }
   else { action = "draft_indent"; trace.push(best ? `best donor covers only ${best.coversGapPct ?? "?"}% of the gap` : "no donor with safe surplus"); }

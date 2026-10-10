@@ -180,3 +180,48 @@ describe("POST /api/decisions/batch", () => {
     expect(events.at(-1)).toMatchObject({ type: "done", live: 0, fallback: 1 });
   });
 });
+
+describe("donor eligibility (unverified / anomalous donors never count)", () => {
+  const base = () => buildDecisionFacts(fixtureState(), "saraswati", "metformin-500");
+  const withDonors = (donors: Record<string, unknown>[], extra: Record<string, unknown> = {}) => ({ ...base(), donors, ...extra }) as Record<string, unknown>;
+  const donor = (id: string, transferable: number, more: Record<string, unknown> = {}) => ({ facilityId: id, name: id, distanceKm: 10, transferable, coversGapPct: Math.min(100, Math.round((transferable / 48) * 100)), verified: true, ...more });
+
+  it("excludes unverified, anomalous, recount and ineligible donors", () => {
+    const snap = withDonors([donor("a", 60, { verified: false }), donor("b", 60, { anomaly: true }), donor("c", 60, { recountRequested: { reason: "x", at: "" } }), donor("d", 60, { eligible: false }), donor("e", 0), donor("ok", 20)]);
+    expect(extractDonors(snap).map((d) => d.facilityId)).toEqual(["ok"]);
+  });
+
+  it("drafts an indent when the only surplus is unverified and supply is normal", () => {
+    const snap = withDonors([donor("devgarh", 60, { verified: false })]);
+    const fb = fallbackDecision(snap, extractDonors(snap));
+    expect(fb.action).toBe("draft_indent");
+    expect(fb.meta.donor).toBeNull();
+    expect(buildQuestions(extractDonors(snap)).some((q) => q.name === "donor")).toBe(false);
+  });
+
+  it("escalates when the only surplus is unverified and upstream is delayed", () => {
+    const snap = withDonors([donor("gopalpura", 90, { verified: false })], { upstream: { status: "delayed", note: "late", expectedOn: null } });
+    expect(fallbackDecision(snap, extractDonors(snap)).action).toBe("escalate_supply_gap");
+  });
+
+  it("ignores a large unverified donor when the verified one covers too little", () => {
+    const snap = withDonors([donor("shyampur", 76, { verified: false }), donor("kesarpura", 12)]);
+    expect(fallbackDecision(snap, extractDonors(snap)).action).toBe("draft_indent");
+  });
+
+  it("verifies the target first when its own count is suspect", () => {
+    const f = base();
+    const snap = { ...f, target: { ...f.target, verified: false, reportFlag: "latest count not verified" }, donors: [donor("x", 60, { verified: false })] } as Record<string, unknown>;
+    expect(fallbackDecision(snap, extractDonors(snap)).action).toBe("verify_count");
+  });
+});
+
+describe("daily use contradicting the dispensing trend", () => {
+  it("asks for verification instead of moving stock", () => {
+    const f = buildDecisionFacts(fixtureState(), "saraswati", "metformin-500");
+    const snap = { ...f, target: { ...f.target, dailyUse: 12, weeklyDispensedTrend: [21, 20, 22, 19, 21, 20] } } as Record<string, unknown>;
+    const fb = fallbackDecision(snap, extractDonors(snap));
+    expect(fb.action).toBe("verify_count");
+    expect(fb.meta.ruleTrace?.[0]).toMatch(/contradicts trend/);
+  });
+});
