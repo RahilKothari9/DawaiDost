@@ -19,7 +19,7 @@ export function StockView() {
         lede="Days of stock for every clinic and medicine, calculated in code from the last verified count and average daily use. A shelf is at risk when it will empty before resupply plus a safety buffer can arrive."
       />
 
-      <Panel title="Days of stock" kicker="Select a cell to forecast that shelf" flush>
+      <Panel title="Days of stock" kicker="Select a cell to forecast that shelf">
         <StockHeatmap
           onSelect={(facilityId, medicineId) => {
             dispatch({ type: "SELECT_FACILITY", facilityId });

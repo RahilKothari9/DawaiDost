@@ -87,7 +87,7 @@ function TransferCard({ t }: { t: Transfer }) {
       </div>
       <div className="tcard__route">
         <span title={L.facilityName(t.fromId)}>{L.facilityName(t.fromId)}</span>
-        <span className="tcard__line" aria-label="to" />
+        <span className="tcard__line" aria-hidden />
         <span title={L.facilityName(t.toId)}>{L.facilityName(t.toId)}</span>
       </div>
       <div className="tcard__meta">
@@ -97,7 +97,7 @@ function TransferCard({ t }: { t: Transfer }) {
         ) : t.status === "delivered" ? (
           <span>Delivered {fmtAgo(t.updatedAt, state.now)}</span>
         ) : (
-          <span>ETA <span className="num">{t.etaHours}h</span> once dispatched</span>
+          <span>ETA <span className="num">{Math.round(t.etaHours * 10) / 10}h</span> once dispatched</span>
         )}
         {t.reason ? <span>{t.reason}</span> : null}
       </div>
