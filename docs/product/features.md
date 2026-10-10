@@ -102,7 +102,7 @@ The **decision card** shows one recommendation in full:
 **What it shows.** Three panels: **Morning briefing** ("Written from the ledger, never from memory"), **Ask the district** ("Answers cite the clinics and counts they used"), and **Indent draft**.
 
 - **Write brief** asks the Responses API for a morning brief from a computed summary, in English and Hindi: a headline, bullets marked as risk, progress, or info, and **Do this morning** actions. The brief can be read aloud with `gpt-4o-mini-tts`; the browser voice is a labeled fallback. Without a key, the panel shows a **Template brief** from the same summary.
-- Ask the district answers plain-language questions with function tools and shows each tool call.
+- **Ask the district** answers plain-language questions with function tools. Suggested questions include "Which PHCs run out of amlodipine this week?", "Where can Rampur get metformin?", and "What transfers are in transit right now?". The answer streams in, and each tool call appears as a chip.
 - The indent draft is a printable requisition to the District Drug Store. Code computes every quantity; the model writes only the justification. The officer can **Approve indent** and **Mark submitted**.
 
 **Who uses it.** The district health officer.

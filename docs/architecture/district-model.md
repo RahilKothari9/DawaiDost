@@ -64,12 +64,13 @@ Persistence is off by default, so each page load starts from the seed. When `per
 
 | Action | Effect | Timeline entry |
 | --- | --- | --- |
-| `RECORD_VOICE_REPORT` | Sets the new count, updates the weekly ledger, runs the count check. Requests a recount if the check flags the count or the extraction confidence is below 0.6. | `voice_report`, then `recount_requested` or `count_verified`, and an `alert` if the record is now critical or out of stock |
+| `RECORD_VOICE_REPORT` | Sets the new count and its source (`voice`, or `manual` for keypad entries), updates the weekly ledger, runs the count check. Requests a recount if the check flags the count or the extraction confidence is below 0.6. | `voice_report`, then `recount_requested` or `count_verified`, and an `alert` if the record is now critical or out of stock |
 | `REQUEST_RECOUNT` | Marks the count as not verified | `recount_requested` |
 | `ADD_DECISION` | Adds a Decisions API result to the queue | `decision` |
 | `SET_DECISION_STATUS` | Approve, reject, or acknowledge a decision. Approval also approves the linked transfer, opens a recount, drafts an indent, or logs an escalation, depending on the action. | `approval` or `rejection`, plus `recount_requested`, `indent`, or `escalation` |
 | `PROPOSE_TRANSFER` | Adds a planned transfer | `transfer_update` |
 | `SET_TRANSFER_STATUS` | Moves a transfer through `proposed → approved → in_transit → delivered`, or to `rejected`. Delivery moves the units between the two ledgers. | `approval`, `rejection`, or `transfer_update` |
+| `CONFIRM_RECEIPT` | The receiving pharmacist counts what arrived. On a shortfall, the receiver gets only what arrived, the donor stays debited for the full quantity, and the donor is asked to recount. The received quantity cannot exceed what was sent. | `transfer_update` ("Receipt confirmed"), and `recount_requested` on a shortfall |
 | `ADVANCE_CLOCK` | Moves simulated time forward (see below) | `transfer_update` and new `alert` entries |
 | `RESET` | Restores the seed state | none |
 
@@ -85,3 +86,7 @@ The demo has its own clock, `state.now`. `ADVANCE_CLOCK` moves it forward by a n
 4. **Rolls weekly history.** When the clock crosses a Monday (IST), the ledger opens a new week.
 
 This lets a judge see a full transfer, from approval to delivery, in a few seconds.
+
+The top bar has clock controls: advance 6 hours, advance one day, or play (2 simulated hours every 1.4 seconds). The command palette (Ctrl+K) has the same actions.
+
+[`lib/district/simulation.ts`](../../lib/district/simulation.ts) can also replay a week as frames, with an **autopilot** policy that proposes and approves every planner transfer at each step. A test checks that the autopilot averts stockout-days compared with doing nothing. This is a simulation on synthetic data, not a measured outcome.

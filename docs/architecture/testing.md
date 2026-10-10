@@ -27,8 +27,22 @@ npm run build
 | [`tests/district/engine.test.ts`](../../tests/district/engine.test.ts) | Exact hero numbers; a full facility-medicine grid with 12 weeks of consistent history; risk levels; stockout dates; zero use; distance and ETA; the count check (flags only the engineered suspicious count, large drops, and stale reports); forecasts with inbound stock; donors and the facts-only snapshot; the Amlodipine shortage with no donor; district KPIs |
 | [`tests/district/plan-transfers.test.ts`](../../tests/district/plan-transfers.test.ts) | The hero pair is bridged from Kalyanpur without breaking its reserve; the near-expiry donor is preferred; a suspicious count is never a donor; no proposals in the district-wide shortage; open transfers are counted; every donor keeps its reserve across generated scenarios |
 | [`tests/district/reducer.test.ts`](../../tests/district/reducer.test.ts) | Voice reports are verified or flagged for recount; low extraction confidence requests a recount; approving or rejecting a decision updates its linked transfer; recount, indent, and escalation approvals log the right events; delivery moves stock exactly once; the clock consumes stock, dispatches, and delivers without drift; reset |
+| [`tests/district/receipt.test.ts`](../../tests/district/receipt.test.ts) | Actor attribution; report source (`voice` or `manual`); `CONFIRM_RECEIPT` for full delivery, shortfall (donor asked to recount), correction after auto-delivery, idempotency, and clamping |
 | [`tests/district/simulation.test.ts`](../../tests/district/simulation.test.ts) | A week of simulation frames; the autopilot averts stockout-days compared with doing nothing; deterministic seeded scenarios |
 | [`tests/scenario.test.ts`](../../tests/scenario.test.ts) | The original three-clinic rules: stock cover, donor reserve, zero use, snapshot content, fallback transfer and indent |
+
+### Voice
+
+| File | What it checks |
+| --- | --- |
+| [`tests/voice/voice-lib.test.ts`](../../tests/voice/voice-lib.test.ts) | Hindi number words (1–100, hundreds, thousands, spelling variants, Devanagari digits); the count plausibility check; the offline extractor skips daily use and strengths and uses recounted numbers; session configs give the check-in agent its tools and Hindi transcription but **never the expected numbers**; the availability answer suggests the nearest facility with stock |
+| [`tests/voice/voice-routes.test.ts`](../../tests/voice/voice-routes.test.ts) | `/api/realtime/session` for each mode, missing credentials, and upstream rejection; `/api/voice/extract` structured outputs, validation, and fallback; `/api/voice/gloss` and `/api/voice/tts` fallbacks |
+
+### Pharmacist app
+
+| File | What it checks |
+| --- | --- |
+| [`tests/pharmacist/pharmacist.test.ts`](../../tests/pharmacist/pharmacist.test.ts) | Saraswati Metformin is the most urgent row; dispatch requests keep the donor reserve; Hindi inbox messages; dispatch and receipt actions; a short receipt logs a discrepancy and asks the donor to recount; keypad reports are `manual` and flag out-of-range counts |
 
 ### Decisions API
 
