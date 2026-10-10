@@ -1,32 +1,32 @@
 /* Shared design tokens. Names are a cross-team contract; values may be tuned by the shell agent. */
 :root {
-  --bg: #f2f0e9;
-  --surface: #fbfaf6;
-  --surface-2: #ebe8df;
-  --surface-ink: #14130f; /* dark panels */
-  --ink: #14130f;
-  --ink-2: #3b3a35;
-  --muted: #77746b;
-  --line: #dcd8cc;
-  --line-strong: #b9b4a5;
+  --bg: #f1eee6;           /* warm paper */
+  --surface: #fbfaf6;      /* card stock */
+  --surface-2: #e8e4d9;    /* sunken / table header */
+  --surface-ink: #17160f;  /* dark panels, nav rail */
+  --ink: #17160f;
+  --ink-2: #3a3830;
+  --muted: #736f64;
+  --line: #dad5c7;
+  --line-strong: #b5af9f;
 
-  --accent: #3d2fe0;       /* OpenAI decision layer, transfers in motion */
+  --accent: #3b2cf0;       /* OpenAI decision layer, transfers in motion. Nothing else. */
   --accent-ink: #ffffff;
-  --accent-soft: #e6e3ff;
+  --accent-soft: #e8e5ff;
 
-  --risk-stockout: #a8201a;
-  --risk-critical: #e2531f;
-  --risk-low: #d69a07;
-  --risk-ok: #5d8a6e;
-  --risk-surplus: #1f6f8b;
+  --risk-stockout: #a11d17;
+  --risk-critical: #dc4f1c;
+  --risk-low: #c98f06;
+  --risk-ok: #4f8162;
+  --risk-surplus: #1d6a86;
 
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, monospace;
-  --font-display: "Instrument Serif", Georgia, serif;
+  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
+  --font-display: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
 
   --radius-sm: 4px;
   --radius: 8px;
   --radius-lg: 14px;
-  --shadow: 0 1px 2px rgb(20 19 15 / 6%), 0 8px 24px rgb(20 19 15 / 8%);
+  --shadow: 0 1px 2px rgb(23 22 15 / 6%), 0 8px 24px rgb(23 22 15 / 8%);
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
