@@ -1,5 +1,5 @@
 /* OWNER: analytics agent. */
-.wrap { position: relative; min-width: 0; --first: minmax(148px, 210px); --cell-min: 50px; }
+.wrap { position: relative; min-width: 0; --first-min: 148px; --first: minmax(var(--first-min), 210px); --cell-min: 50px; }
 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-bottom: 10px; }
 .seg { display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); }
@@ -22,7 +22,7 @@
 .sw { position: relative; display: inline-block; width: 14px; height: 12px; border-radius: 3px; }
 
 .scroller { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; border-radius: var(--radius); }
-.grid { display: grid; gap: 2px; min-width: max-content; }
+.grid { display: grid; gap: 2px; width: 100%; min-width: calc(var(--first-min) + var(--n) * (var(--cell-min) + 2px)); }
 .row { display: grid; grid-template-columns: var(--first) repeat(var(--n), minmax(var(--cell-min), 1fr)); gap: 2px; }
 
 .corner, .rowHead, .groupHead { position: sticky; left: 0; z-index: 2; background: var(--surface); }
@@ -159,7 +159,7 @@
 .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; margin: 8px 0 0; color: var(--muted); font-size: 11px; }
 
 @media (max-width: 640px) {
-  .wrap { --first: minmax(112px, 132px); --cell-min: 44px; }
+  .wrap { --first-min: 112px; --first: minmax(var(--first-min), 132px); --cell-min: 44px; }
   .rowHead { grid-template-columns: minmax(0, 1fr); }
   .rowHead .type { display: none; }
 }

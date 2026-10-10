@@ -24,13 +24,8 @@ import {
 /** Worst → best. */
 export const RISK_LEVELS: RiskLevel[] = ["stockout", "critical", "low", "ok", "surplus"];
 
-export const RISK_LABEL: Record<RiskLevel, string> = {
-  stockout: "Stocked out",
-  critical: "Critical",
-  low: "Below threshold",
-  ok: "Adequate",
-  surplus: "Surplus",
-};
+/** Shared labels from the district formatters, so every panel names states identically. */
+export { RISK_LABEL } from "../district/format";
 
 export const RISK_SHORT: Record<RiskLevel, string> = {
   stockout: "Out",

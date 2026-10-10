@@ -14,6 +14,7 @@
 .svg:focus { outline: none; }
 .svg:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 4px; }
 .axis { fill: var(--muted); font: 10px var(--font-mono); font-variant-numeric: tabular-nums; }
+.zoneLabel, .lineLabel { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .zoneLabel { fill: var(--ink-2); font: 500 9.5px var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
 .lineLabel { fill: var(--ink-2); font: 500 10px var(--font-sans); }
 .pillText { fill: #fff; font: 600 10px var(--font-mono); letter-spacing: .03em; }

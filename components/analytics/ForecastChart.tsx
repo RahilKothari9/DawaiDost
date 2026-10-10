@@ -199,8 +199,7 @@ export function ForecastChart({ facilityId, medicineId, height = 260, showHeader
               {thrUnits > 0 && (
                 <>
                   <line x1={0} x2={iw} y1={y(thrUnits)} y2={y(thrUnits)} stroke="var(--risk-low)" strokeWidth={1.5} strokeDasharray="4 3" />
-                  <text className={s.zoneLabel} x={4} y={y(thrUnits) - 5}>Threshold {thresholdOf(m)}d · {fmtInt(thrUnits)}</text>
-                  {critZoneH > 16 && <text className={s.zoneLabel} x={4} y={ih - 6} opacity={0.8}>Inside lead time ({m.leadTimeDays}d)</text>}
+                  <text className={s.zoneLabel} x={iw - 4} y={y(thrUnits) - 5} textAnchor="end">Threshold {thresholdOf(m)}d · {fmtInt(thrUnits)}</text>
                 </>
               )}
               {reserveUnits > 0 && reserveUnits < yMax && (
@@ -316,7 +315,8 @@ export function ForecastChart({ facilityId, medicineId, height = 260, showHeader
         <ul className={s.legend} aria-hidden>
           <li><svg width={10} height={12}><rect x={1} y={2} width={8} height={10} rx={2} fill="var(--line-strong)" /></svg>Weekly closing stock</li>
           <li><svg width={18} height={4}><line x1={0} x2={18} y1={2} y2={2} stroke="var(--ink)" strokeWidth={2} strokeDasharray="5 3" /></svg>Projection at current use</li>
-          <li><svg width={14} height={10}><rect width={14} height={10} rx={2} fill="var(--risk-low)" opacity={0.3} /></svg>Below threshold</li>
+          <li><svg width={14} height={10}><rect width={14} height={10} rx={2} fill="var(--risk-low)" opacity={0.3} /></svg>Below threshold ({thresholdOf(m)}d)</li>
+          <li><svg width={14} height={10}><rect width={14} height={10} rx={2} fill="var(--risk-critical)" opacity={0.22} /></svg>Inside lead time ({m.leadTimeDays}d)</li>
           <li><svg width={18} height={4}><line x1={0} x2={18} y1={2} y2={2} stroke="var(--ink-2)" strokeWidth={1.2} strokeDasharray="1 3" strokeLinecap="round" /></svg>Donor reserve</li>
           {proj.arrivals.length > 0 && <li><svg width={10} height={10}><circle cx={5} cy={5} r={4} fill="var(--accent)" /></svg>Inbound transfer</li>}
         </ul>

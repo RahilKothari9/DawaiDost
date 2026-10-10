@@ -202,7 +202,6 @@ function MedicineMultiple({ series, atRiskMax, tall }: { series: Series; atRiskM
                   );
                 })}
                 <text className={s.lab} x={iw + 4} y={barH - 2}>{last?.atRisk ?? 0}</text>
-                <text className={s.axis} x={-6} y={4} textAnchor="end" dy="0.32em">{atRiskMax}</text>
                 {weeks.map((w, i) =>
                   i % step === (weeks.length - 1) % step ? (
                     <text key={w.date} className={s.axis} x={x(i)} y={barH + 12} textAnchor="middle">{w.live ? "Now" : fmtDate(w.date)}</text>
@@ -303,9 +302,9 @@ function AvertedCard({ points, state, medicineId }: { points: AvertedPoint[]; st
           )}
         </p>
       </div>
-      <div ref={ref} className={s.plot} style={{ height: H }}>
-        {width > 0 && (
-          <svg className={s.svg} width={width} height={H} viewBox={`0 0 ${width} ${H}`} role="img" tabIndex={pts.length ? 0 : -1} onKeyDown={onKey} onBlur={() => setHi(null)}
+      <div ref={ref} className={s.plot} style={{ height: pts.length ? H : 0, overflow: pts.length ? undefined : "hidden" }}>
+        {width > 0 && pts.length > 0 && (
+          <svg className={s.svg} width={width} height={H} viewBox={`0 0 ${width} ${H}`} role="img" tabIndex={0} onKeyDown={onKey} onBlur={() => setHi(null)}
             aria-label={`Cumulative stockout-days averted: ${total.toFixed(1)} days from ${transfers} transfers.`}>
             <g transform={`translate(${AM.left},${AM.top})`}>
               {y.ticks(3).map((t) => (
