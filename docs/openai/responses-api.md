@@ -16,6 +16,8 @@ Source: [`lib/ai/openai.ts`](../../lib/ai/openai.ts) (`generateStructured()`), a
 | Indent drafting | `POST /api/indent` | `gpt-5.4-mini` | `OPENAI_INDENT_MODEL` | One justification sentence per line, plus a covering note |
 | Escalation memo | `POST /api/escalations/memo` | `gpt-5.5` | `OPENAI_MEMO_MODEL` | Subject, summary, Hindi summary, specific asks, and evidence remarks |
 | Find medicine question parsing | `POST /api/find/ask` | `gpt-5.4-mini` | `OPENAI_FIND_PARSE_MODEL` | Medicine ids, condition, and place id from a Hindi or English question |
+| Voice report extraction | `POST /api/voice/extract` | `gpt-5.4-mini` | `OPENAI_VOICE_EXTRACT_MODEL` | One shelf count per medicine from a Hindi call transcript, with confidence and evidence |
+| Transcript gloss | `POST /api/voice/gloss` | `gpt-5.4-mini` | none | Plain English translation of each Hindi transcript line |
 
 All calls use `reasoning: { effort: "low" }`.
 
@@ -112,6 +114,29 @@ This feature has an extra guard. After the model answers, the server extracts **
 The public Find medicine page takes a short question from a patient or ASHA worker, often in Hindi or Hinglish. The Responses API reads the question and returns only ids: medicine ids, a condition (`sugar`, `bp`, `fever`, `iron`, `diarrhoea`, `infection`, or `breathing`), and a place id. The schema uses enums built from the district catalogue, so the model cannot return an id that does not exist. The instructions say: "Do not answer the question. Do not guess stock."
 
 Code then builds the answer from a public snapshot that contains availability bands (`available`, `low`, `out`), never shelf counts. If the live parse fails, a deterministic parser with a Hindi and English lexicon handles the question. For voice input, see [Audio](audio.md).
+
+## Voice report extraction
+
+**Route:** `POST /api/voice/extract` · Source: [`lib/voice/extract.ts`](../../lib/voice/extract.ts), [`lib/voice/validate.ts`](../../lib/voice/validate.ts)
+
+After a voice check-in, the transcript goes to the Responses API. The model returns one report per medicine for which **the pharmacist** stated a count. The schema limits `medicine_id` to the medicines asked about in the call. Each report has:
+
+| Field | Meaning |
+| --- | --- |
+| `count` | The final count, in digits. After a recount, the recounted number. |
+| `confidence` | 0–1: how clearly the pharmacist stated and confirmed the number |
+| `pharmacist_confirmed` | True if the pharmacist confirmed a read-back |
+| `evidence` | The pharmacist's exact words |
+
+The instructions convert Hindi number words to digits (सोलह = 16, बयालीस = 42, डेढ़ सौ = 150). They ignore numbers spoken only by the agent, daily use, strengths such as 500 mg, and lead times. They forbid any count that was not said. An unconfirmed count gets 10% less confidence. Code then validates each report, and the store runs the ledger count check. The call uses `store: false`.
+
+**Fallback.** A deterministic parser with a Hindi number-word table ([`lib/voice/numbers.ts`](../../lib/voice/numbers.ts)) extracts the counts, labeled `source: "fallback"`.
+
+## Transcript gloss
+
+**Route:** `POST /api/voice/gloss` · Source: [`lib/voice/gloss.ts`](../../lib/voice/gloss.ts)
+
+Judges and officers who do not read Hindi see an English line under each Hindi transcript line. The Responses API translates up to 12 lines at once with a structured output that must return exactly one translation per line. If the count does not match, or the call fails, a keyword gloss is used and labeled `fallback`.
 
 ## Guardrails common to all features
 

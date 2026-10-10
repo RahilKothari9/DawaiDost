@@ -1,10 +1,12 @@
 # Audio
 
-Dawai Dost uses OpenAI audio in four features:
+Dawai Dost uses OpenAI audio in six features:
 
 | Feature | API | Model | Route |
 | --- | --- | --- | --- |
 | Hindi voice check-in with the pharmacist | Realtime API | `gpt-realtime-2.1` | `POST /api/realtime/session` (see [Realtime API](realtime-api.md)) |
+| Live captions during the check-in | Realtime input transcription | `gpt-transcribe` | Inside the Realtime session |
+| Hindi voice notes to pharmacists | Text to speech | `gpt-4o-mini-tts` | `POST /api/voice/tts` |
 | Morning brief read aloud | Text to speech | `gpt-4o-mini-tts` | `POST /api/briefing/speech` |
 | Public "Find medicine" voice question | Speech to text | `gpt-4o-mini-transcribe` | `POST /api/find/ask` |
 | Public "Find medicine" spoken answer | Text to speech | `gpt-4o-mini-tts` | `POST /api/find/speak` |
@@ -33,6 +35,14 @@ An officer can listen to the brief while travelling between facilities. A Hindi 
 ### Fallback
 
 If the key is missing or the TTS call fails, the route returns HTTP 503 with `{ "fallback": "browser_speech" }`. The client then falls back to the browser speech engine. The brief text is always on screen, so no information depends on audio.
+
+## Hindi voice notes
+
+**Route:** `POST /api/voice/tts` · Source: [`app/api/voice/tts/route.ts`](../../app/api/voice/tts/route.ts)
+
+When a count needs a recount, the structured report shows a **Hindi voice note** button. It plays a short recount request for the pharmacist. In the sample availability line, the same route speaks the scripted answer.
+
+The route turns up to 600 characters of text into an MP3 voice note with `gpt-4o-mini-tts`. The default voice is `marin`. The default instruction is: "Speak in warm, clear, unhurried Hindi, like a respectful district health office colleague leaving a short voice note for a rural pharmacist." On failure, it returns `{ "fallback": "browser_tts" }`.
 
 ## Find medicine: voice question
 
