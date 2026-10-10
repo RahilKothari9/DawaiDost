@@ -11,8 +11,11 @@ Dawai Dost is built on the OpenAI platform. These documents explain how each API
 | Document | Content |
 | --- | --- |
 | [OpenAI platform overview](openai/overview.md) | Which OpenAI APIs we use, and the role of each one |
-| [Decisions API](openai/decisions-api.md) | The core decision engine: request design, choice design, probabilities, validation |
+| [Decisions API](openai/decisions-api.md) | The core decision engine: six questions in one call, batch streaming, what-if analysis, validation, fallback |
 | [Realtime API](openai/realtime-api.md) | The Hindi voice check-in: ephemeral keys, WebRTC, event flow |
+| [Responses API](openai/responses-api.md) | Explanations, morning brief, Ask the district with tools, indent drafting, escalation memo, Find medicine parsing |
+| [Audio](openai/audio.md) | Text to speech for briefs and answers, speech to text for patient questions |
+| [Decision evals](openai/evals.md) | 50 labeled cases, prompt variants, rules baseline, and metrics |
 | [Prompt and choice design](openai/prompt-design.md) | The exact instructions and action descriptions, and the reason for each line |
 
 ### Research
