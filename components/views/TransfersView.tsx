@@ -7,6 +7,7 @@ import type { Transfer, TransferStatus } from "@/lib/district/types";
 import { Badge, Button } from "@/components/ui";
 import { TRANSFER_LABEL, fmtAgo, fmtDateTime, fmtPct } from "@/components/shell/format";
 import { useLookups } from "@/components/shell/useLookups";
+import { TransferFlowMini } from "@/components/map/TransferFlowMini";
 import { DecisionMark, ViewHeader } from "./parts";
 
 const COLUMNS: { status: TransferStatus; hint: string }[] = [
@@ -85,20 +86,10 @@ function TransferCard({ t }: { t: Transfer }) {
         <strong>{med ? `${med.name} ${med.strength}` : t.medicineId}</strong>
         <span className="tcard__qty">{t.quantity}<small>{med?.unit.split(" ")[0] ?? "units"}s</small></span>
       </div>
-      <div className="tcard__route">
-        <span title={L.facilityName(t.fromId)}>{L.facilityName(t.fromId)}</span>
-        <span className="tcard__line" aria-hidden />
-        <span title={L.facilityName(t.toId)}>{L.facilityName(t.toId)}</span>
-      </div>
+      <TransferFlowMini transferId={t.id} className="tcard__flow" />
       <div className="tcard__meta">
-        <span><span className="num">{t.distanceKm.toFixed(0)}</span> km</span>
-        {t.status === "in_transit" ? (
-          <span>ETA <span className="num">{etaLeft.toFixed(0)}h</span> · {fmtPct(pct)} of the way</span>
-        ) : t.status === "delivered" ? (
-          <span>Delivered {fmtAgo(t.updatedAt, state.now)}</span>
-        ) : (
-          <span>ETA <span className="num">{Math.round(t.etaHours * 10) / 10}h</span> once dispatched</span>
-        )}
+        {t.status === "in_transit" ? <span><span className="num">{fmtPct(pct)}</span> of the way · <span className="num">{etaLeft.toFixed(1)}h</span> left</span> : null}
+        {t.status === "delivered" ? <span>Delivered {fmtAgo(t.deliveredAt ?? t.updatedAt, state.now)}</span> : null}
         {t.reason ? <span>{t.reason}</span> : null}
       </div>
       <div className="tcard__foot">

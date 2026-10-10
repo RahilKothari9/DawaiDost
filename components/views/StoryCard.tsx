@@ -8,6 +8,7 @@ import { rankDonors } from "@/lib/ai/facts";
 import type { DecisionRecord, Transfer } from "@/lib/district/types";
 import { VoiceConsole } from "@/components/voice/VoiceConsole";
 import { DecisionCard } from "@/components/ai/DecisionCard";
+import { TransferFlowMini } from "@/components/map/TransferFlowMini";
 import { Badge, Button } from "@/components/ui";
 import { ACTION_LABEL, fmtDate, fmtDays } from "@/components/shell/format";
 import { DecisionMark } from "./parts";
@@ -196,7 +197,10 @@ export function StoryCard() {
             ) : null}
 
             {current === 4 && progress.transfer ? (
-              <TransferStage transfer={progress.transfer} />
+              <>
+                <TransferStage transfer={progress.transfer} />
+                <TransferFlowMini transferId={progress.transfer.id} />
+              </>
             ) : current === 4 ? (
               <div className="story__stage-head">
                 <div>
