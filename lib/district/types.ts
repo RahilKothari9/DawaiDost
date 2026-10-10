@@ -97,6 +97,7 @@ export type Transfer = {
   dispatchedAt?: string; // in_transit progress = (now - dispatchedAt) / etaHours
   deliveredAt?: string;
   reason?: string; // short planner note, e.g. "near-expiry stock"
+  receivedQuantity?: number; // counted on arrival by the recipient (CONFIRM_RECEIPT); < quantity means shortfall
 };
 
 export type DonorCandidate = {
@@ -185,6 +186,7 @@ export type VoiceReport = {
   transcript: string;
   language: string;
   needsRecount: boolean;
+  reportSource?: "voice" | "manual" | "system"; // "manual" for keypad entries; defaults to "voice"
   reason?: string;
 };
 
@@ -212,12 +214,13 @@ export type DistrictState = {
 export type DistrictAction =
   | { type: "SELECT_FACILITY"; facilityId: string | null }
   | { type: "SELECT_MEDICINE"; medicineId: string }
-  | { type: "RECORD_VOICE_REPORT"; report: VoiceReport; actor?: string }
-  | { type: "REQUEST_RECOUNT"; facilityId: string; medicineId: string; reason: string }
+  | { type: "RECORD_VOICE_REPORT"; report: VoiceReport; actor?: string; reportSource?: "voice" | "manual" | "system" }
+  | { type: "REQUEST_RECOUNT"; facilityId: string; medicineId: string; reason: string; actor?: string }
   | { type: "ADD_DECISION"; decision: DecisionRecord }
   | { type: "SET_DECISION_STATUS"; decisionId: string; status: DecisionStatus; actor?: string }
   | { type: "PROPOSE_TRANSFER"; transfer: Transfer }
-  | { type: "SET_TRANSFER_STATUS"; transferId: string; status: TransferStatus }
+  | { type: "SET_TRANSFER_STATUS"; transferId: string; status: TransferStatus; actor?: string }
+  | { type: "CONFIRM_RECEIPT"; transferId: string; receivedQty: number; actor?: string } // recipient counts what arrived
   | { type: "ADD_TIMELINE"; event: TimelineEvent }
   | { type: "ADVANCE_CLOCK"; hours: number } // moves in-transit transfers forward, consumes stock
   | { type: "RESET" };

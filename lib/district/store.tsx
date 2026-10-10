@@ -73,7 +73,7 @@ function shiftCurrentWeek(r: StockRecord, qty: number): StockRecord {
   return { ...r, history: h };
 }
 
-function recordVoiceReport(state: DistrictState, report: VoiceReport, actor?: string): DistrictState {
+function recordVoiceReport(state: DistrictState, report: VoiceReport, actor?: string, source?: StockRecord["reportSource"]): DistrictState {
   const existing = state.stock.find((r) => r.facilityId === report.facilityId && r.medicineId === report.medicineId);
   if (!existing) return state;
   const count = Math.max(0, Math.round(report.count));
@@ -81,7 +81,7 @@ function recordVoiceReport(state: DistrictState, report: VoiceReport, actor?: st
   const h = [...r.history];
   const last = h[h.length - 1], prev = h[h.length - 2];
   h[h.length - 1] = { ...last, closingStock: count, dispensed: prev ? Math.max(0, prev.closingStock + (last.received ?? 0) - count) : last.dispensed };
-  r = { ...r, stock: count, history: h, lastReportAt: state.now, reportSource: "voice" };
+  r = { ...r, stock: count, history: h, lastReportAt: state.now, reportSource: source ?? report.reportSource ?? "voice" };
   const check = detectAnomaly(r);
   const lowConfidence = report.confidence < 0.6;
   const needsRecount = check.flagged || report.needsRecount || lowConfidence;
@@ -109,13 +109,14 @@ function recordVoiceReport(state: DistrictState, report: VoiceReport, actor?: st
   return withEvents(next, events);
 }
 
-/** Moves delivered stock from donor to recipient and updates both ledgers. */
-function deliver(state: DistrictState, t: Transfer, at: string): DistrictState {
+/** Moves delivered stock: the donor loses everything dispatched, the recipient gains what arrived (defaults to all of it). */
+function deliver(state: DistrictState, t: Transfer, at: string, receivedQty?: number): DistrictState {
   const donor = state.stock.find((r) => r.facilityId === t.fromId && r.medicineId === t.medicineId);
   const moved = Math.min(t.quantity, donor ? donor.stock : t.quantity);
+  const arrived = Math.min(moved, receivedQty ?? moved);
   let next = state;
   if (donor) next = updateRecord(next, t.fromId, t.medicineId, (r) => shiftCurrentWeek(rollWeeks({ ...r, stock: r.stock - moved }, at), -moved));
-  next = updateRecord(next, t.toId, t.medicineId, (r) => shiftCurrentWeek(rollWeeks({ ...r, stock: r.stock + moved }, at), moved));
+  next = updateRecord(next, t.toId, t.medicineId, (r) => shiftCurrentWeek(rollWeeks({ ...r, stock: r.stock + arrived }, at), arrived));
   return next;
 }
 
@@ -125,7 +126,7 @@ function transferTitle(s: DistrictState, t: Transfer, verb: string) {
 
 const TERMINAL: TransferStatus[] = ["delivered", "rejected"];
 
-function setTransferStatus(state: DistrictState, transferId: string, status: TransferStatus, at = state.now, actor?: string): DistrictState {
+function setTransferStatus(state: DistrictState, transferId: string, status: TransferStatus, at = state.now, actor?: string, receivedQty?: number): DistrictState {
   const t = state.transfers.find((x) => x.id === transferId);
   if (!t || t.status === status || TERMINAL.includes(t.status)) return state;
   const upd: Transfer = {
@@ -133,14 +134,46 @@ function setTransferStatus(state: DistrictState, transferId: string, status: Tra
     ...(status === "approved" ? { approvedAt: at } : {}),
     ...(status === "in_transit" ? { dispatchedAt: at, approvedAt: t.approvedAt ?? at } : {}),
     ...(status === "delivered" ? { deliveredAt: at, dispatchedAt: t.dispatchedAt ?? at, approvedAt: t.approvedAt ?? at } : {}),
+    ...(status === "delivered" && receivedQty !== undefined ? { receivedQuantity: receivedQty } : {}),
   };
   let next: DistrictState = { ...state, transfers: state.transfers.map((x) => (x.id === transferId ? upd : x)) };
-  if (status === "delivered") next = deliver(next, upd, at);
+  if (status === "delivered") next = deliver(next, upd, at, receivedQty);
   const verb = { proposed: "Proposed", approved: "Approved", in_transit: "In transit", delivered: "Delivered", rejected: "Rejected" }[status];
   const kind: TimelineKind = status === "approved" ? "approval" : status === "rejected" ? "rejection" : "transfer_update";
   const by = actor ?? (status === "approved" || status === "rejected" ? officer(state) : status === "delivered" ? pharmacist(state, t.toId) : `${fName(state, t.fromId)} store`);
-  const detail = status === "in_transit" ? `Vehicle dispatched; ETA ${t.etaHours} h over ${t.distanceKm} km.` : status === "delivered" ? `${fName(state, t.toId)} stock updated; ${fName(state, t.fromId)} keeps its reserve.` : undefined;
+  const detail = status === "in_transit" ? `Vehicle dispatched; ETA ${t.etaHours} h over ${t.distanceKm} km.`
+    : status === "delivered" ? `${receivedQty !== undefined ? `Recipient counted ${unitWord(med(state, t.medicineId), receivedQty)} on arrival. ` : ""}${fName(state, t.toId)} stock updated; ${fName(state, t.fromId)} keeps its reserve.`
+    : undefined;
   return withEvents(next, [{ at, kind, facilityId: t.toId, medicineId: t.medicineId, actor: by, title: transferTitle(state, t, verb), detail }]);
+}
+
+/**
+ * Recipient confirms what physically arrived. Marks the transfer delivered (or corrects an ETA auto-delivery);
+ * the donor is debited the full dispatched quantity. A shortfall raises an alert and a donor recount.
+ */
+function confirmReceipt(state: DistrictState, transferId: string, receivedQty: number, actor?: string): DistrictState {
+  const t = state.transfers.find((x) => x.id === transferId);
+  if (!t || t.status === "rejected" || t.receivedQuantity !== undefined || !Number.isFinite(receivedQty)) return state;
+  const received = Math.max(0, Math.min(t.quantity, Math.round(receivedQty)));
+  const by = actor ?? pharmacist(state, t.toId);
+  const m = med(state, t.medicineId);
+  let next: DistrictState;
+  if (t.status === "delivered") {
+    const diff = t.quantity - received;
+    next = { ...state, transfers: state.transfers.map((x) => (x.id === t.id ? { ...x, receivedQuantity: received, updatedAt: state.now } : x)) };
+    if (diff > 0) next = updateRecord(next, t.toId, t.medicineId, (r) => { const cut = Math.min(diff, r.stock); return shiftCurrentWeek({ ...r, stock: r.stock - cut }, -cut); });
+    next = withEvents(next, [{ at: state.now, kind: "transfer_update", facilityId: t.toId, medicineId: t.medicineId, actor: by, title: transferTitle(state, t, "Receipt confirmed"), detail: `Counted ${unitWord(m, received)} of ${t.quantity} dispatched.` }]);
+  } else {
+    next = setTransferStatus(state, t.id, "delivered", state.now, by, received);
+  }
+  const short = t.quantity - received;
+  if (short <= 0) return next;
+  const reason = `Receipt shortfall: ${fName(state, t.toId)} counted ${received} of ${t.quantity} dispatched (${short} missing).`;
+  next = updateRecord(next, t.fromId, t.medicineId, (r) => ({ ...r, verified: false, recountRequested: { reason, at: state.now } }));
+  return withEvents(next, [
+    { at: state.now, kind: "alert", facilityId: t.toId, medicineId: t.medicineId, actor: by, title: `Shortfall on receipt: ${unitWord(m, short)} ${m?.name ?? t.medicineId} missing`, detail: reason },
+    { at: state.now, kind: "recount_requested", facilityId: t.fromId, medicineId: t.medicineId, actor: "Count check", title: `Recount requested at ${fName(state, t.fromId)}`, detail: reason },
+  ]);
 }
 
 function setDecisionStatus(state: DistrictState, decisionId: string, status: DecisionStatus, actor?: string): DistrictState {
@@ -237,11 +270,11 @@ export function districtReducer(state: DistrictState, action: DistrictAction): D
   switch (action.type) {
     case "SELECT_FACILITY": return { ...state, selectedFacilityId: action.facilityId };
     case "SELECT_MEDICINE": return { ...state, selectedMedicineId: action.medicineId };
-    case "RECORD_VOICE_REPORT": return recordVoiceReport(state, action.report, action.actor);
+    case "RECORD_VOICE_REPORT": return recordVoiceReport(state, action.report, action.actor, action.reportSource);
     case "REQUEST_RECOUNT": {
       if (!state.stock.some((r) => r.facilityId === action.facilityId && r.medicineId === action.medicineId)) return state;
       const next = updateRecord(state, action.facilityId, action.medicineId, (r) => ({ ...r, verified: false, recountRequested: { reason: action.reason, at: state.now } }));
-      return withEvents(next, [{ at: state.now, kind: "recount_requested", facilityId: action.facilityId, medicineId: action.medicineId, actor: officer(state), title: `Recount requested at ${fName(state, action.facilityId)}`, detail: `${mName(state, action.medicineId)}: ${action.reason}` }]);
+      return withEvents(next, [{ at: state.now, kind: "recount_requested", facilityId: action.facilityId, medicineId: action.medicineId, actor: action.actor ?? officer(state), title: `Recount requested at ${fName(state, action.facilityId)}`, detail: `${mName(state, action.medicineId)}: ${action.reason}` }]);
     }
     case "ADD_DECISION": {
       const d = action.decision;
@@ -259,7 +292,8 @@ export function districtReducer(state: DistrictState, action: DistrictAction): D
       const next = { ...state, transfers: [...state.transfers, { ...t, status: "proposed" as const, createdAt: t.createdAt || state.now, updatedAt: t.updatedAt || state.now }], decisions };
       return withEvents(next, [{ at: state.now, kind: "transfer_update", facilityId: t.toId, medicineId: t.medicineId, actor: "Stock planner", title: transferTitle(state, t, "Transfer proposed"), detail: t.reason ?? `${t.distanceKm} km, ETA ${t.etaHours} h.` }]);
     }
-    case "SET_TRANSFER_STATUS": return setTransferStatus(state, action.transferId, action.status);
+    case "SET_TRANSFER_STATUS": return setTransferStatus(state, action.transferId, action.status, state.now, action.actor);
+    case "CONFIRM_RECEIPT": return confirmReceipt(state, action.transferId, action.receivedQty, action.actor);
     case "ADD_TIMELINE": return { ...state, timeline: [action.event, ...state.timeline].slice(0, TIMELINE_CAP) };
     case "ADVANCE_CLOCK": return advanceClock(state, action.hours);
     case "RESET": return createInitialState();
@@ -276,12 +310,13 @@ function internalReducer(state: DistrictState, action: InternalAction): District
 export type DistrictActions = {
   selectFacility: (facilityId: string | null) => void;
   selectMedicine: (medicineId: string) => void;
-  recordVoiceReport: (report: VoiceReport, actor?: string) => void;
-  requestRecount: (facilityId: string, medicineId: string, reason: string) => void;
+  recordVoiceReport: (report: VoiceReport, actor?: string, reportSource?: StockRecord["reportSource"]) => void;
+  requestRecount: (facilityId: string, medicineId: string, reason: string, actor?: string) => void;
   addDecision: (decision: DecisionRecord) => void;
   setDecisionStatus: (decisionId: string, status: DecisionStatus, actor?: string) => void;
   proposeTransfer: (transfer: Transfer) => void;
-  setTransferStatus: (transferId: string, status: TransferStatus) => void;
+  setTransferStatus: (transferId: string, status: TransferStatus, actor?: string) => void;
+  confirmReceipt: (transferId: string, receivedQty: number, actor?: string) => void;
   addTimeline: (event: TimelineEvent) => void;
   advanceClock: (hours: number) => void;
   reset: () => void;
@@ -349,12 +384,13 @@ export function DistrictProvider({ children, persist = false, initialState }: { 
   const actions = useMemo<DistrictActions>(() => ({
     selectFacility: (facilityId) => dispatch({ type: "SELECT_FACILITY", facilityId }),
     selectMedicine: (medicineId) => dispatch({ type: "SELECT_MEDICINE", medicineId }),
-    recordVoiceReport: (report, actor) => dispatch({ type: "RECORD_VOICE_REPORT", report, actor }),
-    requestRecount: (facilityId, medicineId, reason) => dispatch({ type: "REQUEST_RECOUNT", facilityId, medicineId, reason }),
+    recordVoiceReport: (report, actor, reportSource) => dispatch({ type: "RECORD_VOICE_REPORT", report, actor, reportSource }),
+    requestRecount: (facilityId, medicineId, reason, actor) => dispatch({ type: "REQUEST_RECOUNT", facilityId, medicineId, reason, actor }),
     addDecision: (decision) => dispatch({ type: "ADD_DECISION", decision }),
     setDecisionStatus: (decisionId, status, actor) => dispatch({ type: "SET_DECISION_STATUS", decisionId, status, actor }),
     proposeTransfer: (transfer) => dispatch({ type: "PROPOSE_TRANSFER", transfer }),
-    setTransferStatus: (transferId, status) => dispatch({ type: "SET_TRANSFER_STATUS", transferId, status }),
+    setTransferStatus: (transferId, status, actor) => dispatch({ type: "SET_TRANSFER_STATUS", transferId, status, actor }),
+    confirmReceipt: (transferId, receivedQty, actor) => dispatch({ type: "CONFIRM_RECEIPT", transferId, receivedQty, actor }),
     addTimeline: (event) => dispatch({ type: "ADD_TIMELINE", event }),
     advanceClock: (hours) => dispatch({ type: "ADVANCE_CLOCK", hours }),
     reset: () => dispatch({ type: "RESET" }),
