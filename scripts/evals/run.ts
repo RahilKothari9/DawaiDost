@@ -4,7 +4,7 @@
 //     [--configs gpt-6-luna:product,gpt-6-luna:minimal] [--cases T01,V01] [--concurrency 4] [--out data/evals/results-YYYY-MM-DD.json]
 //
 // Prints progress and headline metrics; never prints the API key.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { EVAL_CASES, EVAL_POLICY, EVAL_POLICY_VERSION } from "../../lib/evals/cases";
 import { BASELINE_SOURCE, makeConfig, runBaseline, runCase, runPool } from "../../lib/evals/run";
@@ -12,7 +12,7 @@ import { gradeBaseline, gradeConfig } from "../../lib/evals/report";
 import type { CaseResult, PromptVariantId, ResultsFile, RunConfig } from "../../lib/evals/types";
 
 // Only gpt-6-luna is enabled on /v1/decisions for the project key (others: 404 model_not_found, probed 2026-10-10).
-const DEFAULT_CONFIGS = "gpt-6-luna:product,gpt-6-luna:action_only,gpt-6-luna:minimal,gpt-6-luna:policy";
+const DEFAULT_CONFIGS = "gpt-6-luna:product,gpt-6-luna:action_only,gpt-6-luna:minimal,gpt-6-luna:product_v1";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -29,11 +29,13 @@ async function main() {
   const cases = only ? EVAL_CASES.filter((c) => only.includes(c.id)) : EVAL_CASES;
   const configs: RunConfig[] = (arg("configs") ?? DEFAULT_CONFIGS).split(",").map((s) => {
     const [model, variant] = s.trim().split(":");
-    if (!["product", "action_only", "minimal", "policy"].includes(variant)) throw new Error(`Unknown variant in ${s}`);
+    if (!["product", "product_v1", "action_only", "minimal", "policy"].includes(variant)) throw new Error(`Unknown variant in ${s}`);
     return makeConfig(model, variant as PromptVariantId, cases[0]);
   });
   const startedAt = new Date().toISOString();
-  const out = arg("out") ?? `data/evals/results-${startedAt.slice(0, 10)}.json`;
+  const label = arg("label");
+  const out = arg("out") ?? `data/evals/results-${startedAt.slice(0, 10)}${label ? `-${label}` : ""}.json`;
+  if (existsSync(out)) throw new Error(`${out} exists; pass --label to keep run history.`);
 
   // Probe once so an exhausted key fails fast instead of producing a file of errors.
   const probe = await runCase(cases[0], configs[0], { key, maxAttempts: 2, timeoutMs });
@@ -58,7 +60,8 @@ async function main() {
 
   const file: ResultsFile = {
     schema: "dawai-dost/evals@1",
-    runId: `eval-${startedAt.replace(/[-:.TZ]/g, "").slice(0, 14)}`,
+    runId: `eval-${startedAt.replace(/[-:.TZ]/g, "").slice(0, 14)}${label ? `-${label}` : ""}`,
+    label: label ?? null,
     startedAt,
     finishedAt: new Date().toISOString(),
     policyVersion: EVAL_POLICY_VERSION,

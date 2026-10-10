@@ -8,10 +8,12 @@ How we check that the OpenAI Decisions API picks the right district action. The 
 - **Labels.** Every case has an expected action and a one-line reason. The labels follow the written policy `EVAL_POLICY` (P1 verify first, P2 transfer when a verified donor covers the gap, P3 unverified donors do not count, P4 escalate when local cover fails and upstream is delayed or the warehouse is short, P5 otherwise indent). The labels were fixed before any model was run. Ten cases are tagged **ambiguous** and list the alternative actions an officer would also accept. `tests/evals` checks that every unambiguous label follows from its snapshot under the policy.
 - **Categories.** Clear transfer (8), blocked by donor reserve (5), surplus too small (6), suspicious count (8), district-wide shortage (9), near-expiry donor (4), zero consumption (3), unverified donor (3), partial cover (4).
 - **Prompt variants.**
-  - `product` sends the exact multi-question call that `/api/decisions/district` makes (`buildQuestions` in `lib/ai/decide.ts`).
-  - `action_only` uses the product instructions and choices, but asks only `next_action`.
+  - `product` sends exactly what `/api/decisions/district` sends: `buildQuestions` with `NEXT_ACTION_INSTRUCTIONS` and `DISTRICT_ACTION_CHOICES`, imported from `lib/ai/decide.ts`. The eval never copies prompt text.
+  - `action_only` uses the same imported instructions and choices, but asks only `next_action`.
   - `minimal` sends a one-line instruction and bare choice labels with the same snapshot.
-- **Models.** `gpt-6-luna` with four prompt variants: the three above plus `policy` (explicit criteria). Other models can be passed with `--configs model:variant`, but with the project key only `gpt-6-luna` is enabled on `/v1/decisions`.
+  - `product_v1` is **historical**. It is a frozen copy of the pre-fix `next_action` prompt (before commit a1699a5) inside the current question set. It is kept only so the v1 to v2 change can be re-measured.
+  - `policy` is an explicit-criteria candidate. It was measured in the first run and became the basis of v2.
+- **Models.** `gpt-6-luna`. The default run uses `product`, `action_only`, `minimal` and `product_v1`. Other models can be passed with `--configs model:variant`, but with the project key only `gpt-6-luna` is enabled on `/v1/decisions`.
 - **Baseline.** The product's deterministic fallback (`fallbackDecision` in `lib/ai/decide.ts`) runs on the same snapshots.
 - **Execution.** Up to 4 calls run at once. A call gets up to 4 attempts with backoff on 429 and 5xx errors. An exhausted quota is not retried. A call that still fails counts as wrong.
 
@@ -41,24 +43,33 @@ The launcher loads `.env.local` and runs `scripts/evals/run.ts` with Node's buil
 
 The **Run live** button on `/evals` streams a fresh run of 10 cases through `POST /api/evals/run` as NDJSON. Results from this button are not saved.
 
-## Results (`results-2026-10-10.json`, measured)
+## Results (measured, `gpt-6-luna`)
 
-Only `gpt-6-luna` is enabled on `/v1/decisions` for the project key. `gpt-6-sol`, `gpt-6.1-sol`, `gpt-5.5` and `gpt-5.4-mini` all return `404 model_not_found`, so this run compares prompt variants on one model, not models. The deterministic rules are the baseline.
+Only `gpt-6-luna` is enabled on `/v1/decisions` for the project key. `gpt-6-sol`, `gpt-6.1-sol`, `gpt-5.5` and `gpt-5.4-mini` all return `404 model_not_found`. So the runs compare prompts on one model, against the deterministic rules. Each run is a separate file, and `/evals` shows the newest one by `startedAt`.
 
-| System | Accuracy (50) | Unambiguous (40) | Strict | Macro F1 | ECE | Brier | p50 / p95 | Tokens / call |
+### Prompt history
+
+| Version | Commit | Accuracy (50) | Unambiguous (40) | Transfer picks (wrong) | Misses |
+| --- | --- | --- | --- | --- | --- |
+| v1 | d041df4 | 64.0% (32) | 55.0% (22) | 35 (17) | R01-R04, S01-S06, V03, V05, E04, E06, E07, Z01, U01, U03 |
+| v2 | a1699a5 | 94.0% (47) | 92.5% (37) | 18 (2) | V05, E04, U03 |
+
+The cases expect 17 transfers. v1 recommended a transfer whenever a donor had any surplus, which accounts for 17 of its 18 misses (E04 went to indent). v2 states the checks in order and allows a transfer only when one verified donor covers the gap, or at least 75% of it. This fixed all ten too-small-surplus and reserve-blocked cases, and V03, E06, E07, Z01 and U01.
+
+### Latest run, `results-2026-10-10-v2.json`
+
+| System | Accuracy | Unambiguous | Strict | Macro F1 | ECE | Brier | p50 / p95 | Tokens / call |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| gpt-6-luna, product call | 64.0% (32) | 55.0% (22) | 58.0% | 0.57 | 0.117 | 0.581 | 151 / 266 ms | 1528 |
-| gpt-6-luna, action only | 64.0% (32) | 55.0% (22) | 58.0% | 0.57 | 0.124 | 0.580 | 149 / 269 ms | 699 |
-| gpt-6-luna, minimal prompt | 62.0% (31) | 52.5% (21) | 56.0% | 0.51 | 0.107 | 0.595 | 148 / 222 ms | 550 |
-| gpt-6-luna, explicit criteria | 94.0% (47) | 92.5% (37) | 82.0% | 0.87 | 0.257 | 0.158 | 148 / 219 ms | 748 |
-| Rules (`fallbackDecision`) | 98.0% (49) | 97.5% (39) | 94.0% | 0.95 | n/a (fixed templates) | n/a | <1 ms | 0 |
+| gpt-6-luna, product (v2) | 94.0% (47) | 92.5% (37) | 84.0% | 0.88 | 0.112 | 0.113 | 169 / 1255 ms | 1666 |
+| gpt-6-luna, action only (v2) | 94.0% (47) | 92.5% (37) | 84.0% | 0.88 | 0.112 | 0.113 | 177 / 232 ms | 837 |
+| gpt-6-luna, minimal prompt | 62.0% (31) | 52.5% (21) | 56.0% | 0.51 | 0.107 | 0.595 | 190 / 434 ms | 550 |
+| gpt-6-luna, product v1 (historical) | 64.0% (32) | 55.0% (22) | 58.0% | 0.57 | 0.117 | 0.581 | 218 / 361 ms | 1528 |
+| Rules (`fallbackDecision`) | 100.0% (50) | 100.0% (40) | 94.0% | 0.96 | n/a (fixed templates) | n/a | <1 ms | 0 |
 
-### What the run shows
-
-- **The product prompt over-recommends transfers.** It chose `transfer_surplus` on 35 of 50 cases. That includes all 10 cases where donor surplus is real but too small to bridge the gap, or where the donor's reserve leaves too little to move. The high-confidence wrong transfers are R01 (0.84), S02, S04 and S05, all at 0.75 or more.
-- **The product instructions barely beat the minimal prompt.** They score 64% against 62%. Spelling the decision criteria out in order (the explicit criteria variant) raises accuracy to 94%. This variant mirrors the labeling policy, so it shows the model follows stated criteria well. It is not evidence of independent judgment.
-- **The extra product questions don't change the action.** Adding the urgency, recount and donor questions changed no `next_action` choice compared with action only, but used 2.2 times the input tokens.
-- **The explicit criteria variant is underconfident.** Its mean confidence is 68% against 94% accuracy, which gives ECE 0.257.
-- **The rules baseline beats every prompt on this set.** This is expected, because the rules and the labels encode the same policy. The explicit criteria variant still misses E04 (warehouse short while supply status is "available"), U03 (an unverified donor with full cover next to a weak verified one) and V05. The rules miss only V05.
-- **No case was right for the model and wrong for the rules.**
-- **The rules baseline changed mid-session.** It scored 90% earlier on 2026-10-10. The AI agent then changed `fallbackDecision` to stop counting unverified donors, and the numbers above use the current code.
+Notes:
+- **v1 reproduced exactly.** The re-measured `product_v1` made the same choice as the first run on all 50 cases (64.0%, 32/50).
+- **v2 confidence is better aligned.** Mean confidence rose from 69.2% (v1) to 82.8% (v2), against 94% accuracy, and ECE is 0.112. v2 has one high-confidence error.
+- **The extra product questions still don't change the action.** `product` and `action_only` chose identical actions on all 50 cases. The extra questions cost 2.0 times the input tokens.
+- **The v2 product p95 of 1255 ms comes from four slow calls (S02, A07, A08, A09, 0.6-1.3 s).** p50 is 169 ms.
+- **Caveat.** The v2 criteria mirror the labeling policy, and so do the rules. The rules now score 100% after commit 5c176be added the unverified-donor and trend checks. The model has not been right on any case where the rules were wrong. Its three remaining misses are V05, E04 and U03.
+- **The first run's baseline is out of date.** That run (`results-2026-10-10.json`) recorded the rules at 98.0%, before 5c176be. It also includes the `policy` candidate at 94.0%.

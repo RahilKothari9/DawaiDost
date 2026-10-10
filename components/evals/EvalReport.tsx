@@ -8,6 +8,7 @@ import { compareSystems, type Prediction } from "@/lib/evals/metrics";
 import { buildReport, type ConfigReport } from "@/lib/evals/report";
 import type { DecisionAction } from "@/lib/district/types";
 import type { ResultsFile } from "@/lib/evals/types";
+import type { PromptHistoryRow } from "@/lib/evals/history";
 import { CaseExplorer } from "./CaseExplorer";
 import { ConfusionMatrix } from "./ConfusionMatrix";
 import { LiveRun } from "./LiveRun";
@@ -15,11 +16,11 @@ import { ReliabilityDiagram } from "./ReliabilityDiagram";
 import { ACTION_SHORT, int, ms, num, pct } from "./format";
 import s from "./evals.module.css";
 
-const VARIANT_LABEL: Record<string, string> = { product: "Product call", action_only: "Action only", minimal: "Minimal prompt", policy: "Explicit criteria", fallback: "lib/ai/decide.ts" };
+const VARIANT_LABEL: Record<string, string> = { product: "Product call", action_only: "Action only", minimal: "Minimal prompt", policy: "Explicit criteria", product_v1: "Product call v1 (historical)", fallback: "lib/ai/decide.ts" };
 
-type Props = { data: ResultsFile; file: string | null; recorded: boolean; liveSubset: { id: string; title: string; expected: DecisionAction; acceptable: DecisionAction[] }[]; rerun: string };
+type Props = { data: ResultsFile; file: string | null; recorded: boolean; liveSubset: { id: string; title: string; expected: DecisionAction; acceptable: DecisionAction[] }[]; rerun: string; history: PromptHistoryRow[] };
 
-export function EvalReport({ data, file, recorded, liveSubset, rerun }: Props) {
+export function EvalReport({ data, file, recorded, liveSubset, rerun, history }: Props) {
   const report = useMemo(() => buildReport(data), [data]);
   const primary = report.configs.find((c) => c.id === "gpt-6-luna:product") ?? report.configs[0] ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(primary?.id ?? null);
@@ -152,6 +153,33 @@ export function EvalReport({ data, file, recorded, liveSubset, rerun }: Props) {
           Accuracy counts the expected action, or a listed alternative on the {m.ambiguousN} ambiguous cases. Strict counts only the expected label. Brier is the multi-class score against the expected label on unambiguous cases (0 is perfect). The rules baseline&apos;s probabilities are fixed templates, so its ECE and Brier describe those templates, not judgment. Cost is blank until verified per-token prices are set in <code className={s.code}>lib/evals/report.ts</code>.
         </p>
       </Panel>
+
+      {history.length > 1 && selected && split ? (
+        <Panel title="Prompt history" kicker="The product's next_action prompt, measured on the same 50 cases">
+          <ol className={s.history}>
+            {history.map((h, i) => {
+              const prev = history[i - 1];
+              return (
+                <li key={h.version} className={s.historyRow}>
+                  <div className={s.historyVer}><b>{h.version}</b><span className="num muted">{h.commit}</span></div>
+                  <div className={s.historyNums}>
+                    <span className={s.historyAcc}>{pct(h.accuracy)}</span>
+                    <span className="muted">{h.correct}/{h.n} · unambiguous {pct(h.unambiguousAccuracy)}</span>
+                    {prev ? <span className={h.accuracy >= prev.accuracy ? s.up : s.down}>{h.accuracy >= prev.accuracy ? "+" : "−"}{Math.abs(Math.round((h.accuracy - prev.accuracy) * 100))} pts</span> : null}
+                  </div>
+                  <div className={s.historyText}>
+                    <p>{h.change}</p>
+                    <p className="muted">Transfer picks <b className="num">{h.transferPicks}</b>, of which wrong <b className="num">{h.wrongTransfers}</b>{prev ? <> (was {prev.transferPicks} and {prev.wrongTransfers})</> : null}. Misses: <span className="num">{h.misses.join(", ") || "none"}</span>.</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+          <p className={s.chartNote}>
+            Failure mode fixed: v1 recommended a transfer whenever a donor had any surplus, including donors whose safe surplus covered only a small share of the gap. The v2 criteria mirror the labeling policy, so the gain shows the model follows stated criteria. It is not independent judgment. On the latest run the rules baseline scores {pct(bm.accuracy)}, and the model was right where the rules were wrong on {split.aOnly.length} {split.aOnly.length === 1 ? "case" : "cases"}.
+          </p>
+        </Panel>
+      ) : null}
 
       <div className={s.grid2}>
         <Panel title="Confusion matrix" kicker={shown === base ? "Rules baseline" : shown.id}>

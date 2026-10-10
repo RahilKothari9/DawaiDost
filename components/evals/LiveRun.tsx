@@ -13,6 +13,7 @@ type Row = { caseId: string; title: string; expected: DecisionAction; acceptable
 const MODELS = ["gpt-6-luna"];
 const VARIANTS: { value: PromptVariantId; label: string }[] = [
   { value: "product", label: "Product call" },
+  { value: "product_v1", label: "Product call v1 (historical)" },
   { value: "action_only", label: "Action only" },
   { value: "minimal", label: "Minimal prompt" },
   { value: "policy", label: "Explicit criteria" },

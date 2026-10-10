@@ -2,7 +2,7 @@
 import type { DecisionAction } from "../district/types";
 import type { EvalCategory } from "./cases";
 
-export type PromptVariantId = "product" | "action_only" | "minimal" | "policy";
+export type PromptVariantId = "product" | "product_v1" | "action_only" | "minimal" | "policy";
 
 export type RunConfig = {
   id: string; // `${model}:${variant}`
@@ -52,6 +52,7 @@ export type ResultsCase = {
 export type ResultsFile = {
   schema: "dawai-dost/evals@1";
   runId: string;
+  label?: string | null;
   startedAt: string;
   finishedAt: string;
   policyVersion: string;

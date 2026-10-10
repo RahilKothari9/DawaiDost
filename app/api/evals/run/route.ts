@@ -10,7 +10,7 @@ export const maxDuration = 120;
 
 const bodySchema = z.object({
   model: z.enum(EVAL_MODELS).default("gpt-6-luna"),
-  variant: z.enum(["product", "action_only", "minimal", "policy"]).default("product"),
+  variant: z.enum(["product", "product_v1", "action_only", "minimal", "policy"]).default("product"),
   caseIds: z.array(z.string().regex(/^[A-Z]\d{2}$/)).min(1).max(12).optional(),
 });
 

@@ -1,7 +1,7 @@
 // OWNER: evals agent. Server-only eval runner: sends labeled cases to the live Decisions API with bounded
 // concurrency and retries, and grades the product's deterministic fallback on the same cases.
 import type { DecisionCreateParams } from "openai/resources/decisions";
-import { buildQuestions, extractDonors, fallbackDecision, NEXT_ACTION_INSTRUCTIONS } from "../ai/decide";
+import { buildQuestions, DISTRICT_ACTION_CHOICES, extractDonors, fallbackDecision, NEXT_ACTION_INSTRUCTIONS } from "../ai/decide";
 import { actionChoices } from "../scenario";
 import type { DecisionAction } from "../district/types";
 import type { EvalCase } from "./cases";
@@ -25,6 +25,15 @@ const MINIMAL_CHOICES = [
 ];
 
 /**
+ * HISTORICAL, frozen: the product's next_action prompt before the eval-driven fix (lib/ai/decide.ts before
+ * commit a1699a5). Measured 64% on 2026-10-10 (results-2026-10-10.json). Kept only so `product_v1` can be rerun.
+ */
+export const PRODUCT_V1_INSTRUCTIONS =
+  "Choose the single safest next operational step for the target facility. Consider report verification (verified flag, reportFlag, report age), days of stock against the resupply lead time plus safety buffer, inbound transfers, donor surplus after its reserve, and whether the action can bridge the gap. Prefer a local transfer when a verified donor has sufficient surplus and preserve every donor's reserve. Do not treat a transfer as a cure for upstream shortages: when upstream supply is delayed or unavailable and local surplus cannot cover the gap, escalate. The officer must approve all actions. If the snapshot contains a counterfactual field, judge that hypothetical scenario as stated.";
+/** HISTORICAL, frozen: v1 used the generic lib/scenario.ts choice descriptions. */
+export const PRODUCT_V1_CHOICES = actionChoices;
+
+/**
  * Candidate instructions that state the decision criteria explicitly. Caveat: these mirror EVAL_POLICY, the same
  * policy the labels follow, so a gain here shows the model can follow stated criteria, not independent judgment.
  */
@@ -32,6 +41,7 @@ export const POLICY_INSTRUCTIONS =
   "Choose the single safest next operational step for the target facility. Apply these checks in order and stop at the first that holds. 1) If the target's count is unverified, has a reportFlag, is under recount, or its dailyUse is far from weeklyDispensedTrend divided by 7, choose verify_count. 2) If one verified donor's transferable units (already net of its own reserve) cover the target's gapUnits (coversGapPct 100), choose transfer_surplus. A donor that covers only part of the gap does not qualify, and unverified donors never count. 3) If no verified donor covers the gap and upstream status is delayed or unavailable, or districtStore.daysOfDistrictDemand is below the medicine's leadTimeDays, choose escalate_supply_gap. 4) Otherwise choose draft_indent. The officer must approve all actions.";
 
 export const PROMPT_VARIANTS: Record<PromptVariantId, { label: string; description: string }> = {
+  product_v1: { label: "Product call v1 (historical)", description: "Frozen pre-fix next_action prompt (generic choices, signals listed but no ordered criteria) inside the current product question set." },
   product: { label: "Product call", description: "Exactly what /api/decisions/district sends: next_action plus urgency, recount, indent-timing and donor questions in one call." },
   action_only: { label: "Action only", description: "Product instructions and choice descriptions, but next_action is the only question." },
   minimal: { label: "Minimal prompt", description: "One-line instruction and bare choice labels. Same snapshot." },
@@ -41,7 +51,11 @@ export const PROMPT_VARIANTS: Record<PromptVariantId, { label: string; descripti
 export function buildEvalQuestions(c: EvalCase, variant: PromptVariantId): DecisionCreateParams["questions"] {
   if (variant === "product") return buildQuestions(extractDonors(c.snapshot));
   if (variant === "policy") return [{ type: "choice", name: "next_action", instructions: POLICY_INSTRUCTIONS, choices: actionChoices }];
-  if (variant === "action_only") return [{ type: "choice", name: "next_action", instructions: NEXT_ACTION_INSTRUCTIONS, choices: actionChoices }];
+  if (variant === "action_only") return [{ type: "choice", name: "next_action", instructions: NEXT_ACTION_INSTRUCTIONS, choices: DISTRICT_ACTION_CHOICES }];
+  if (variant === "product_v1") {
+    // Current companion questions with the frozen v1 next_action question swapped in.
+    return buildQuestions(extractDonors(c.snapshot)).map((q) => (q.name === "next_action" ? { type: "choice" as const, name: "next_action", instructions: PRODUCT_V1_INSTRUCTIONS, choices: PRODUCT_V1_CHOICES } : q));
+  }
   return [{ type: "choice", name: "next_action", instructions: MINIMAL_INSTRUCTIONS, choices: MINIMAL_CHOICES }];
 }
 

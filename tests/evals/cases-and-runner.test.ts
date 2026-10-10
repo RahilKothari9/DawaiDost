@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { EVAL_CASES, LIVE_SUBSET_IDS } from "../../lib/evals/cases";
-import { makeConfig, parseNextAction, runBaseline, runCase, runPool } from "../../lib/evals/run";
+import { buildEvalQuestions, makeConfig, parseNextAction, PRODUCT_V1_INSTRUCTIONS, runBaseline, runCase, runPool } from "../../lib/evals/run";
+import { DISTRICT_ACTION_CHOICES, NEXT_ACTION_INSTRUCTIONS } from "../../lib/ai/decide";
 
 type Snap = {
   target: { verified: boolean; reportFlag: string | null; gapUnits: number; dailyUse: number; weeklyDispensedTrend: number[] };
@@ -99,6 +100,17 @@ describe("runner", () => {
     expect(cfg.questions).toContain("next_action");
     expect(cfg.questions.length).toBeGreaterThan(1);
     expect(makeConfig("gpt-6-luna", "minimal", c).instructions.length).toBeLessThan(cfg.instructions.length);
+  });
+
+  it("uses the product prompt from lib/ai/decide.ts, and the frozen v1 prompt only for product_v1", () => {
+    for (const v of ["product", "action_only"] as const) {
+      const q = buildEvalQuestions(c, v).find((x) => x.name === "next_action") as { instructions: string; choices: unknown };
+      expect(q.instructions).toBe(NEXT_ACTION_INSTRUCTIONS);
+      expect(q.choices).toEqual(DISTRICT_ACTION_CHOICES);
+    }
+    const v1 = buildEvalQuestions(c, "product_v1");
+    expect((v1.find((x) => x.name === "next_action") as { instructions: string }).instructions).toBe(PRODUCT_V1_INSTRUCTIONS);
+    expect(v1.map((q) => q.name)).toEqual(buildEvalQuestions(c, "product").map((q) => q.name));
   });
 
   it("bounds concurrency", async () => {

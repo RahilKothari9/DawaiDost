@@ -2,7 +2,8 @@
 import type { Metadata } from "next";
 import { EvalReport } from "@/components/evals/EvalReport";
 import { EVAL_CASES, EVAL_POLICY, EVAL_POLICY_VERSION, LIVE_SUBSET_IDS } from "@/lib/evals/cases";
-import { loadLatestResults } from "@/lib/evals/load";
+import { promptHistory } from "@/lib/evals/history";
+import { loadAllResults } from "@/lib/evals/load";
 import { BASELINE_SOURCE, runBaseline } from "@/lib/evals/run";
 import type { ResultsFile } from "@/lib/evals/types";
 
@@ -31,8 +32,10 @@ function baselineOnly(): ResultsFile {
 }
 
 export default async function Page() {
-  const loaded = await loadLatestResults();
+  const runs = await loadAllResults();
+  const loaded = runs.at(-1) ?? null;
+  const history = promptHistory(runs);
   const data = loaded?.data ?? baselineOnly();
   const subset = data.cases.filter((c) => LIVE_SUBSET_IDS.includes(c.id)).map((c) => ({ id: c.id, title: c.title, expected: c.expected, acceptable: c.acceptable }));
-  return <EvalReport data={data} file={loaded?.file ?? null} recorded={!!loaded && data.configs.length > 0} liveSubset={subset} rerun={RERUN} />;
+  return <EvalReport data={data} file={loaded?.file ?? null} recorded={!!loaded && data.configs.length > 0} liveSubset={subset} rerun={RERUN} history={history} />;
 }
