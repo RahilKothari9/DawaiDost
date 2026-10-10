@@ -14,7 +14,7 @@ This script shows Dawai Dost in three minutes. It uses the exact labels in the i
 
 ### 0:00 – The problem on one screen (15 s)
 
-Open **Command center** (`/`). The headline says how many clinics run out before resupply can reach them. Point to the KPI strip and the map.
+Open **Command center** (`/`). The large number says how many clinics run out before resupply, out of 22 clinics in Sehore district. Point to the KPI strip and the map.
 
 > "This is Dr. Ananya Rao, the district health officer for Sehore. Saraswati PHC has two days of Metformin left. Resupply takes five days. Today she finds out from a patient. With Dawai Dost, she finds out first."
 

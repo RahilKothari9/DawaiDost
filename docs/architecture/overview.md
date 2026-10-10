@@ -69,7 +69,7 @@ flowchart TB
 
 ## End-to-end flow
 
-1. The officer opens the command center. It shows how many clinics run out before resupply can reach them.
+1. The officer opens the command center. One live number shows how many clinics run out before resupply.
 2. A pharmacist reports a count by voice. The store records it, runs the count check, and raises an alert if the clinic is critical.
 3. For each at-risk clinic and medicine, the browser builds a facts-only snapshot and calls `/api/decisions/district` (or `/api/decisions/batch` for many).
 4. The server asks the Decisions API six questions in one call, validates the answers, and returns a labeled `DecisionRecord`.

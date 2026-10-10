@@ -20,7 +20,7 @@ Dawai Dost has one view for each job in the district medicine loop. The officer 
 
 ### Command center (`/`)
 
-**What it shows.** A one-line headline, for example "Two clinics run out before resupply can reach them." Below it: the KPI strip, the hero story card, a compact district map, the **AI inbox** (pending Decisions API recommendations), and **Live activity**.
+**What it shows.** One live number: how many clinics run out before resupply, "of 22 clinics in Sehore district". The number changes as the clock moves and transfers land. Below it: the KPI strip, the hero story card, a compact district map, the **AI inbox** (pending Decisions API recommendations), and **Live activity**.
 
 The **story card** runs the full loop for the most urgent clinic in four steps: **Voice check** (Realtime API), **Forecast** (deterministic code), **Decide** (OpenAI Decisions API), **Approve** (district officer), then **Move medicine**. The officer can start with **Run voice check + Decisions API** or **Use today's count**. After approval, **Dispatch transfer**, **Advance 6 hours**, and **Mark delivered** finish the story, and **Open the record** shows the audit trail.
 
