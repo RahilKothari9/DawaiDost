@@ -109,10 +109,11 @@
 .choiceWrong { color: var(--risk-critical); }
 
 /* drawer content */
-.drawerBody { display: grid; gap: 18px; font-size: 13px; }
+.drawerBody { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; font-size: 13px; min-width: 0; }
+.drawerBody > * { min-width: 0; }
 .kv { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 6px 12px; }
 .kv dt { color: var(--muted); }
-.kv dd { color: var(--ink); }
+.kv dd { color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 .sectionLabel { font-size: var(--t-xs); color: var(--muted); margin-bottom: 8px; }
 .pre {
   font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5; background: var(--surface-2); border-radius: var(--radius);

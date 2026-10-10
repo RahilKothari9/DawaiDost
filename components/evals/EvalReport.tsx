@@ -73,11 +73,19 @@ export function EvalReport({ data, file, recorded, liveSubset, rerun }: Props) {
           <span className={s.statValue}>{pct(m.unambiguousAccuracy)}</span>
           <span className={s.statNote}>{m.unambiguousN} cases with one defensible answer</span>
         </div>
-        <div className={s.stat}>
-          <span className={s.statLabel}>Rules baseline</span>
-          <span className={s.statValue}>{pct(bm.accuracy)}</span>
-          <span className={s.statNote}>{delta === null ? "Deterministic fallback, same cases" : <>Model is <span className={delta >= 0 ? s.up : s.down}>{delta >= 0 ? "+" : "−"}{Math.abs(Math.round(delta * 100))} pts</span> vs rules</>}</span>
-        </div>
+        {delta === null ? (
+          <div className={s.stat}>
+            <span className={s.statLabel}>Ambiguous cases</span>
+            <span className={s.statValue}>{pct(m.ambiguousAccuracy)}</span>
+            <span className={s.statNote}>{m.ambiguousN} cases where an alternative is also accepted</span>
+          </div>
+        ) : (
+          <div className={s.stat}>
+            <span className={s.statLabel}>Rules baseline</span>
+            <span className={s.statValue}>{pct(bm.accuracy)}</span>
+            <span className={s.statNote}>Model is <span className={delta >= 0 ? s.up : s.down}>{delta >= 0 ? "+" : "−"}{Math.abs(Math.round(delta * 100))} pts</span> vs rules on the same cases</span>
+          </div>
+        )}
         <div className={s.stat}>
           <span className={s.statLabel}>Calibration error (ECE)</span>
           <span className={s.statValue}>{selected ? num(m.ece, 3) : "–"}</span>
