@@ -10,6 +10,9 @@ import type { BaselineResult, CaseResult, PromptVariantId, RunConfig } from "./t
 
 export const DECISIONS_URL = "https://api.openai.com/v1/decisions";
 
+/** Models the live-run endpoint accepts (all verified to exist on the Decisions API). */
+export const EVAL_MODELS = ["gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-5.5", "gpt-5.4-mini"] as const;
+
 /** Instructions for the "minimal" variant: no signals named, no policy, bare choice labels. */
 export const MINIMAL_INSTRUCTIONS = "Choose the next action for the target facility.";
 const MINIMAL_CHOICES = [
