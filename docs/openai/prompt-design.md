@@ -85,4 +85,4 @@ See [Responses API](responses-api.md) for each feature.
 3. **Write choices as conditions.** Each description says when the action applies.
 4. **Give the model a way out.** The donor question has a `false` choice, so the model is never forced to pick a weak donor.
 5. **State the limits.** The instructions say what the model must not do.
-6. **Measure the prompt.** The eval set compares the product prompt with an action-only prompt and a minimal prompt. See [Decision evals](evals.md).
+6. **Measure the prompt.** The eval set compares the product prompt with an action-only prompt, a minimal prompt, and an explicit-criteria prompt. The first live run showed that the product prompt over-recommends transfers (64%), and that ordered criteria fix most of it (94%). See [Decision evals](evals.md).

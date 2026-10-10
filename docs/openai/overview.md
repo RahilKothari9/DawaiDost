@@ -33,7 +33,7 @@ flowchart LR
 | Realtime input transcription | `gpt-transcribe` | Live captions of the speaker during a voice call | inside `/api/realtime/session` | [Realtime API](realtime-api.md) |
 | Text to speech | `gpt-4o-mini-tts` | Read the brief, Find medicine answers, and Hindi voice notes aloud | `/api/briefing/speech`, `/api/find/speak`, `/api/voice/tts` | [Audio](audio.md) |
 | Speech to text | `gpt-4o-mini-transcribe` | Transcribe a spoken Find medicine question | `/api/find/ask` | [Audio](audio.md) |
-| Decisions API evals | `gpt-6-luna` and others | Measure accuracy and calibration on 50 labeled cases | `/evals`, `/api/evals/run`, `scripts/evals/run.ts` | [Evals](evals.md) |
+| Decisions API evals | `gpt-6-luna` (measured); other models when enabled | Measure accuracy and calibration on 50 labeled cases | `/evals`, `/api/evals/run`, `scripts/evals/run.ts` | [Evals](evals.md) |
 
 ## Why OpenAI for this problem
 

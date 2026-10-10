@@ -258,7 +258,7 @@ This is a hackathon prototype. **All facility data is synthetic.** The block nam
 2. **More languages.** Support more Indian languages for other states.
 3. **District data.** Read dispatch data from the state drug distribution system to improve consumption and lead-time values.
 4. **Durable audit trail.** Store reports, decisions, approvals, and escalations in a database with user roles.
-5. **Published eval results.** Run the eval set against the live Decisions API and publish the numbers.
+5. **Better decisions, measured.** Move the product prompt toward the explicit criteria that scored 94% in the first live eval run, and test on held-out cases that were not used for tuning.
 6. **Pilot.** Run a pilot at a group of PHCs in one district. Measure report completion, days of warning before a stockout, time to approved action, transfers completed, and stockout-days per medicine against a baseline period.
 
 ## Documentation

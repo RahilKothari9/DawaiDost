@@ -18,7 +18,7 @@ These items were on the original roadmap. They now exist in code, on synthetic d
 | Escalation memo to the state, with evidence | `/api/escalations/memo` with a number check |
 | Patient and ASHA availability check | `/find` page and the voice **Availability line** |
 | Pharmacist task app | `/pharmacist` |
-| Decision quality evaluation | 50 labeled cases, `/evals` ([Decision evals](../openai/evals.md)) |
+| Decision quality evaluation, with a measured live run | 50 labeled cases, 200 live calls, `/evals` ([Decision evals](../openai/evals.md)) |
 
 ## Stage 1: Real phone calls
 
@@ -28,7 +28,9 @@ These items were on the original roadmap. They now exist in code, on synthetic d
 
 ## Stage 2: Measured quality
 
-- Run the full eval matrix against the live Decisions API and publish the results.
+- Move the product instructions toward the explicit decision criteria, which raised accuracy from 64% to 94% in the first live run.
+- Add a held-out case set that was not used to tune the prompt or the rules, including mixed-signal cases that no single rule covers.
+- Run the other models when they are enabled on `/v1/decisions` for the project.
 - Add labeled cases from officer decisions in a pilot, with consent.
 - Track the agreement between recommendations and the officer's final action.
 
