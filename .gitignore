@@ -3,6 +3,9 @@ node_modules/
 out/
 .vercel/
 .impeccable/
+.claude/
+.codex/
+.cursor/
 .env*
 !.env.example
 coverage/
