@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Mic, RotateCcw, SkipForward, Truck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useDistrict } from "@/lib/district/store";
+import { rankDonors } from "@/lib/ai/facts";
 import type { DecisionRecord, Transfer } from "@/lib/district/types";
 import { VoiceConsole } from "@/components/voice/VoiceConsole";
 import { DecisionCard } from "@/components/ai/DecisionCard";
@@ -23,22 +24,22 @@ const STEPS = [
 
 /** The Saraswati metformin case, walked through the whole loop. All progress is derived from district state. */
 export function StoryCard() {
-  const { state, dispatch, assessments, getAssessment, getRecord } = useDistrict();
+  const { state, dispatch, getAssessment, getRecord } = useDistrict();
   const target = state.facilities.find((f) => f.id === "saraswati") ?? state.facilities.find((f) => /saraswati/i.test(f.name)) ?? state.facilities[0];
   const medicine = state.medicines.find((m) => m.id === "metformin-500") ?? state.medicines[0];
   const [run, setRun] = useState<Snapshot | null>(null);
 
   const a = target && medicine ? getAssessment(target.id, medicine.id) : undefined;
   const rec = target && medicine ? getRecord(target.id, medicine.id) : undefined;
+  // Same ranked donors the Decisions API sees, so the card and the model agree.
   const donor = useMemo(() => {
-    if (!medicine || !target) return undefined;
-    // Peer clinics only: the district store resupplies on its own lead time, it is not a lateral donor.
-    const peer = new Set(state.facilities.filter((f) => f.type === "PHC" || f.type === "CHC").map((f) => f.id));
-    const best = assessments
-      .filter((x) => x.medicineId === medicine.id && x.facilityId !== target.id && x.transferable > 0 && peer.has(x.facilityId))
-      .sort((x, y) => y.transferable - x.transferable)[0];
-    return best ? { ...best, name: state.facilities.find((f) => f.id === best.facilityId)?.name ?? best.facilityId } : undefined;
-  }, [assessments, medicine, target, state.facilities]);
+    if (!medicine || !target || !a) return undefined;
+    try {
+      return rankDonors(state, target, medicine, a.gapUnits).find((d) => d.type !== "WAREHOUSE" && d.transferable > 0);
+    } catch {
+      return undefined;
+    }
+  }, [state, target, medicine, a]);
 
   const progress = useMemo(() => {
     if (!run || !target || !medicine) return null;
@@ -90,28 +91,38 @@ export function StoryCard() {
   const days = a?.daysOfStock ?? 0;
   const threshold = a?.thresholdDays ?? medicine.leadTimeDays + medicine.safetyBufferDays;
   const unit = medicine.unit.split(" ")[0];
+  const short = target.name.replace(/ PHC$/, "");
+  const medName = medicine.name.toLowerCase();
 
   return (
     <section className="story" id="story" aria-labelledby="story-title">
       <div className="story__top">
         <div>
           <div className="story__eyebrow">
-            <Badge dot>{a?.risk === "stockout" ? "Stocked out" : "Projected stockout"}</Badge>
+            <Badge dot className={`story__risk story__risk--${a?.risk ?? "ok"}`}>
+              {a?.risk === "stockout" ? "Stocked out" : a?.risk === "critical" ? "Projected stockout" : a?.risk === "low" ? "Thin buffer" : "Covered"}
+            </Badge>
             <span>{target.name} · {target.block} block · {medicine.name} {medicine.strength}</span>
           </div>
           <h2 className="story__title" id="story-title">
-            {a && a.risk !== "ok" && a.risk !== "surplus" ? (
+            {a?.risk === "stockout" ? (
+              <>{short} is out of {medName}. Resupply takes {medicine.leadTimeDays} days.</>
+            ) : a?.risk === "critical" ? (
               <>
-                {target.name.replace(/ PHC$/, "")} runs out of {medicine.name.toLowerCase()} in <em>{fmtDays(days)} days</em>. Resupply takes {medicine.leadTimeDays}.
+                {short} runs out of {medName} in <em>{fmtDays(days)} days</em>. Resupply takes {medicine.leadTimeDays}.
+              </>
+            ) : a?.risk === "low" ? (
+              <>
+                {short} has <em>{fmtDays(days)} days</em> of {medName}. Enough to reach resupply, with a thin buffer.
               </>
             ) : (
-              <>{target.name.replace(/ PHC$/, "")} has {fmtDays(days)} days of {medicine.name.toLowerCase()}. The shelf is covered.</>
+              <>{short} has {fmtDays(days)} days of {medName}. The shelf is covered.</>
             )}
           </h2>
           <div className="story__facts">
             <span><b>{rec?.stock ?? "—"}</b> {unit}s on the shelf</span>
             <span><b>{rec?.dailyUse ?? "—"}</b> used a day</span>
-            {donor ? <span>{donor.name} can spare <b>{donor.transferable}</b></span> : <span>No nearby clinic has safe surplus</span>}
+            {donor ? <span>{donor.name}, {Math.round(donor.distanceKm)} km away, can spare <b>{donor.transferable}</b></span> : <span>No nearby clinic has safe surplus</span>}
           </div>
         </div>
         <div className="story__gauge" aria-label={`${fmtDays(days)} days of stock against a ${threshold}-day threshold`}>

@@ -48,7 +48,7 @@ export function ShellProvider({ children }: { children: ReactNode }) {
   const dismissToast = useCallback((id: string) => setToasts((ts) => ts.filter((t) => t.id !== id)), []);
   const pushToast = useCallback((t: Omit<Toast, "id"> & { id?: string }) => {
     const id = t.id ?? `t-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setToasts((ts) => (ts.some((x) => x.id === id) ? ts : [...ts.slice(-3), { ...t, id }]));
+    setToasts((ts) => (ts.some((x) => x.id === id) ? ts : [...ts.slice(-2), { ...t, id }]));
   }, []);
 
   const value = useMemo(

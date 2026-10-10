@@ -115,16 +115,26 @@ function SimClock() {
 
 export function ApiStatusPill({ verbose }: { verbose?: boolean }) {
   const { health, refreshHealth } = useShell();
+  const { state } = useDistrict();
+  // The key being configured is not the same as the API answering: reflect the latest real answer too.
+  // Seeded history is synthetic; only decisions requested in this session say anything about the API.
+  const last = state.decisions
+    .filter((d) => !d.id.includes("seed"))
+    .reduce<(typeof state.decisions)[number] | undefined>((acc, d) => (!acc || d.createdAt > acc.createdAt ? d : acc), undefined);
+  const lastFellBack = health.state === "live" && last?.source === "demo_fallback";
+  const mode = health.state === "live" ? (lastFellBack ? "degraded" : "live") : health.state;
   const label =
-    health.state === "live" ? "Decisions API · live" : health.state === "demo" ? "Decisions API · demo mode" : health.state === "offline" ? "Status unavailable" : "Checking API…";
+    mode === "live" ? "Decisions API · live" : mode === "degraded" ? "Decisions API · fallback" : mode === "demo" ? "Decisions API · demo mode" : mode === "offline" ? "Status unavailable" : "Checking API…";
   const title =
-    health.state === "live"
+    mode === "live"
       ? `OpenAI key configured. Decisions: ${health.decisionsModel}. Voice: ${health.realtimeModel}.`
-      : health.state === "demo"
-        ? "No OpenAI key on the server. Every decision is a labeled deterministic fallback from the same stock rules."
-        : "Could not reach /api/health.";
+      : mode === "degraded"
+        ? `Key configured, but the last decision used the labeled fallback (${last?.fallbackReason}). Click to re-check.`
+        : mode === "demo"
+          ? "No OpenAI key on the server. Every decision is a labeled deterministic fallback from the same stock rules."
+          : "Could not reach /api/health.";
   return (
-    <button type="button" className={`api-pill api-pill--${health.state}`} title={title} onClick={refreshHealth}>
+    <button type="button" className={`api-pill api-pill--${mode}`} title={title} onClick={refreshHealth}>
       <i className="api-pill__dot" aria-hidden />
       <span className="api-pill__label">{label}</span>
       {verbose && health.decisionsModel ? <span className="api-pill__model num">{health.decisionsModel}</span> : null}
