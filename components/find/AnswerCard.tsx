@@ -1,7 +1,7 @@
 "use client";
 // OWNER: find agent. The answer: where to go, how sure we are, and what is on the way. Bands only, never counts.
 import { useState } from "react";
-import { Clock, Flag, MapPin, PackageX, Truck, Users, Volume2, VolumeX } from "lucide-react";
+import { CircleHelp as HelpCircle, Clock, Flag, MapPin, Navigation, PackageX, Truck, Users, Volume2, VolumeX } from "lucide-react";
 import type { FacilityOption, FindAnswer } from "@/lib/find/answer";
 import { answerCopy, arrivingText, bandText, freshnessText, kmText, medShort, placeName, speakText, type Lang } from "@/lib/find/copy";
 import { BAND_ICON } from "./icons";
@@ -17,6 +17,17 @@ function BandPill({ band, lang, size = "md" }: { band: FacilityOption["band"]; l
     <span className={s.band} data-band={band} data-size={size}>
       <Icon size={size === "lg" ? 26 : 18} aria-hidden strokeWidth={2.4} />
       {bandText(band, lang)}
+    </span>
+  );
+}
+
+/** A stale report is not evidence of stock: show it as unknown, not green. */
+function OptionPill({ o, lang }: { o: FacilityOption; lang: Lang }) {
+  if (o.freshness !== "stale") return <BandPill band={o.band} lang={lang} />;
+  return (
+    <span className={s.band} data-band="unknown">
+      <HelpCircle size={18} aria-hidden strokeWidth={2.4} />
+      {lang === "hi" ? "पता नहीं" : "Unknown"}
     </span>
   );
 }
@@ -63,7 +74,9 @@ export function AnswerCard({ lang, answer, now, reported, onReport }: Props) {
         <span className={s.answerMed}>{medShort(answer.medicineId, lang)}</span>
         {answer.kind === "here" || answer.kind === "here_low"
           ? <BandPill band={answer.home!.band} lang={lang} size="lg" />
-          : <span className={s.band} data-band="out" data-size="lg"><PackageX size={26} aria-hidden strokeWidth={2.2} />{lang === "hi" ? "आपके PHC पर नहीं" : "Not at your PHC"}</span>}
+          : answer.kind === "elsewhere"
+            ? <span className={s.band} data-band="low" data-size="lg"><Navigation size={24} aria-hidden strokeWidth={2.2} />{lang === "hi" ? "दूसरी जगह मिलेगी" : "Available elsewhere"}</span>
+            : <span className={s.band} data-band="out" data-size="lg"><PackageX size={26} aria-hidden strokeWidth={2.2} />{lang === "hi" ? "आस-पास नहीं" : "Not nearby"}</span>}
       </header>
 
       <h2 className={s.answerHeadline}>{copy.headline}</h2>
@@ -95,7 +108,7 @@ export function AnswerCard({ lang, answer, now, reported, onReport }: Props) {
       {answer.kind !== "here" && answer.kind !== "here_low" && home && (
         <div className={s.homeLine}>
           <span>{placeName(home.facilityId, lang)}</span>
-          <BandPill band={home.band} lang={lang} />
+          <OptionPill o={home} lang={lang} />
           <span className={s.homeFresh}>{freshnessText(home, now, lang)}</span>
           <ReportsNote n={home.patientReports} lang={lang} />
         </div>
@@ -139,7 +152,7 @@ export function AnswerCard({ lang, answer, now, reported, onReport }: Props) {
                     {o.arrivingInHours != null && ` · ${arrivingText(o.arrivingInHours, lang, false)}`}
                   </small>
                 </span>
-                <BandPill band={o.band} lang={lang} />
+                <OptionPill o={o} lang={lang} />
               </li>
             ))}
           </ol>

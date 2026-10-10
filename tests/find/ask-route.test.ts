@@ -64,3 +64,13 @@ describe("POST /api/find/ask", () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe("POST /api/find/speak", () => {
+  it("tells the client to use the browser voice when speech is not configured", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    const { POST: speakPOST } = await import("../../app/api/find/speak/route");
+    const res = await speakPOST(new Request("http://localhost/api/find/speak", { method: "POST", body: JSON.stringify({ text: "नमस्ते", lang: "hi" }) }));
+    expect(res.status).toBe(503);
+    expect((await res.json()).fallback).toBe("browser_tts");
+  });
+});
