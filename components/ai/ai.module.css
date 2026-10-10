@@ -1,0 +1,69 @@
+/* OWNER: ai agent. Shared styles for the OpenAI decision layer. Tokens from app/tokens.css. */
+
+.source {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 600 10px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 7px; border-radius: 999px; white-space: nowrap;
+  border: 1px solid var(--line);
+}
+.source i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.sourceLive { color: var(--accent); border-color: color-mix(in oklab, var(--accent) 35%, transparent); background: var(--accent-soft); }
+.sourceLive i { box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); animation: pulse 2.4s var(--ease) infinite; }
+.sourceFallback { color: var(--ink-2); background: var(--surface-2); border-style: dashed; border-color: var(--line-strong); }
+
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px transparent; } }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  font: 600 12px/1.2 var(--font-sans); color: var(--chip, var(--ink));
+  padding: 4px 9px 4px 7px; border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--chip, var(--ink)) 9%, var(--surface));
+  border: 1px solid color-mix(in oklab, var(--chip, var(--ink)) 28%, transparent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chip svg { flex: none; }
+
+.urgency {
+  display: inline-flex; align-items: center; gap: 4px;
+  font: 600 10px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .05em;
+  padding: 3px 6px; border-radius: var(--radius-sm); white-space: nowrap;
+}
+.urgency_today { color: #fff; background: var(--risk-stockout); }
+.urgency_this_week { color: var(--ink); background: color-mix(in oklab, var(--risk-low) 30%, var(--surface)); }
+.urgency_monitor { color: var(--muted); background: var(--surface-2); }
+
+.stack {
+  display: flex; height: 6px; width: 100%; min-width: 72px; border-radius: 999px; overflow: hidden;
+  background: var(--surface-2);
+}
+.stack span { height: 100%; transition: width .5s var(--ease); }
+.stack span + span { box-shadow: inset 1px 0 0 var(--surface); }
+
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.shimmer {
+  background: linear-gradient(90deg, var(--surface-2) 0%, color-mix(in oklab, var(--accent) 10%, var(--surface)) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%; animation: shimmer 1.2s linear infinite; border-radius: var(--radius-sm);
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.langToggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface); }
+.langToggle button {
+  border: 0; background: none; cursor: pointer; padding: 3px 9px; border-radius: 999px;
+  font: 600 11px/1.2 var(--font-sans); color: var(--muted);
+}
+.langToggle button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+.genLabel {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 500 10.5px/1.3 var(--font-mono); color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sourceLive i, .spinner, .shimmer { animation: none; }
+  .stack span { transition: none; }
+}

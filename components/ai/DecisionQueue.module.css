@@ -1,0 +1,91 @@
+/* OWNER: ai agent. */
+.queue { container-type: inline-size; display: flex; flex-direction: column; min-width: 0; }
+
+.head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; flex-wrap: wrap; }
+.headText { min-width: 0; }
+.kicker { display: inline-flex; align-items: center; gap: 5px; font: 600 10.5px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.counts { margin: 6px 0 0; font: 400 13px/1.3 var(--font-sans); color: var(--ink-2); }
+.counts b { color: var(--ink); font-weight: 600; }
+
+.batch { overflow: hidden; padding: 0 16px 10px; }
+.progress { height: 4px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; }
+.progress span { display: block; height: 100%; background: var(--accent); transition: width .35s var(--ease); }
+.batchStats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 8px 0 0; font: 400 12px/1.3 var(--font-sans); color: var(--ink-2); }
+.batchStats b { color: var(--accent); }
+.dismiss { margin-left: auto; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px; display: inline-flex; }
+
+.filters { display: flex; gap: 4px; padding: 0 16px 8px; border-bottom: 1px solid var(--line); }
+.filters button {
+  border: 0; background: none; cursor: pointer; padding: 6px 10px; border-radius: var(--radius-sm);
+  font: 500 12.5px/1 var(--font-sans); color: var(--muted);
+}
+.filters button[aria-selected="true"] { background: var(--surface-2); color: var(--ink); }
+
+.notice { margin: 8px 16px 0; padding: 8px 10px; border-radius: var(--radius-sm); background: color-mix(in oklab, var(--risk-low) 14%, var(--surface)); font-size: 12.5px; color: var(--ink); }
+.empty { padding: 28px 16px; margin: 0; color: var(--muted); font-size: 13px; text-align: center; }
+.more { margin: 0; padding: 8px 16px 12px; font-size: 12px; color: var(--muted); }
+
+.list { list-style: none; margin: 0; padding: 0; }
+
+.row {
+  position: relative;
+  display: grid; align-items: center; gap: 6px 12px;
+  grid-template-columns: minmax(150px, 1.3fr) minmax(150px, 1fr) auto auto;
+  grid-template-areas: "main ai meta actions";
+  padding: 10px 16px; border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.row::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--risk-low); }
+.row[data-risk="critical"]::before { background: var(--risk-critical); }
+.row[data-risk="stockout"]::before { background: var(--risk-stockout); }
+.row[data-risk="ok"]::before, .row[data-risk="surplus"]::before { background: var(--risk-ok); }
+.row[data-selected] { background: color-mix(in oklab, var(--accent) 5%, var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent); }
+.row[data-status="approved"], .row[data-status="rejected"], .row[data-status="acknowledged"] { opacity: .78; }
+
+.rowMain {
+  grid-area: main; display: flex; align-items: center; gap: 12px; min-width: 0;
+  border: 0; background: none; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit;
+}
+.rowMain:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--radius-sm); }
+.days { display: flex; flex-direction: column; align-items: flex-end; min-width: 38px; line-height: 1; }
+.days b { font-size: 17px; font-weight: 600; color: var(--ink); }
+.row[data-risk="stockout"] .days b, .row[data-risk="critical"] .days b { color: var(--risk-stockout); }
+.days small { font: 500 9.5px/1.4 var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.who { display: flex; flex-direction: column; min-width: 0; }
+.fac { font: 600 13.5px/1.25 var(--font-sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.med { font: 400 12px/1.3 var(--font-sans); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ai { grid-area: ai; min-width: 0; }
+.decision { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.decisionTop { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.conf { font-size: 12px; color: var(--ink-2); }
+.thinking { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--font-mono); color: var(--accent); }
+.shimmerBar { display: block; width: 120px; height: 22px; }
+.decideOne {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  border: 1px dashed color-mix(in oklab, var(--accent) 45%, transparent); background: none; color: var(--accent);
+  padding: 5px 9px; border-radius: var(--radius-sm); font: 600 12px/1 var(--font-sans);
+}
+.decideOne:hover { background: var(--accent-soft); }
+.err { font-size: 12px; color: var(--risk-stockout); }
+.err button { border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0; font: inherit; }
+
+.meta { grid-area: meta; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.lat { font-size: 11px; }
+.actions { grid-area: actions; display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+.status { font: 600 10.5px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 4px 6px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.status[data-status="approved"] { color: var(--risk-ok); background: color-mix(in oklab, var(--risk-ok) 12%, var(--surface)); }
+.status[data-status="rejected"] { color: var(--risk-stockout); }
+
+/* compact (overview) */
+.compact .head { padding: 12px 14px 8px; }
+.compact .row { grid-template-columns: minmax(0, 1.4fr) minmax(96px, 1fr) auto; grid-template-areas: "main ai actions" "main ai meta"; padding: 8px 14px; }
+.compact .meta { display: none; }
+.compact .batch { padding: 0 14px 8px; }
+
+@container (max-width: 620px) {
+  .row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main actions" "ai meta"; }
+  .compact .row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main actions" "ai ai"; }
+}
+
+@media (prefers-reduced-motion: reduce) { .progress span { transition: none; } }
