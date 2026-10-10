@@ -49,7 +49,7 @@ The **decision card** shows one recommendation in full:
 
 ### District map (`/map`)
 
-**What it shows.** Every facility in the district, coloured by risk for the selected medicine, with transfer arcs between clinics. Medicine on the road moves along its arc as the simulated clock runs. Counters show stocked-out, critical, in-transit, and awaiting transfers. **Play week** runs a 7-day time-lapse of stock and transfers. The map uses MapLibre GL, with an offline SVG renderer when WebGL or the basemap is not available.
+**What it shows.** Every facility in the district, coloured by risk for the selected medicine. Selecting a clinic opens a drawer with its shelf, its forecast, and what the Decisions API recommended. The map draws transfer arcs between clinics. Medicine on the road moves along its arc as the simulated clock runs. Counters show stocked-out, critical, in-transit, and awaiting transfers. **Play week** runs a 7-day time-lapse of stock and transfers. The map uses MapLibre GL, with an offline SVG renderer when WebGL or the basemap is not available.
 
 **Who uses it.** The district health officer and the district store team.
 
@@ -57,7 +57,7 @@ The **decision card** shows one recommendation in full:
 
 ### Transfers (`/transfers`)
 
-**What it shows.** "Medicine that already exists in the district, moved to where it is needed." Transfers grouped by stage: **Drafted from a recommendation, waiting for you**, **Approved, waiting for a vehicle**, **On the road**, and **Received and counted**. Each transfer shows the donor, receiver, quantity, distance, and ETA.
+**What it shows.** "Medicine that already exists in the district, moved to where it is needed." Transfers grouped by stage: **Drafted from a recommendation, waiting for you**, **Approved, waiting for a vehicle**, **On the road**, and **Received and counted**. Each transfer shows the donor, receiver, quantity, distance, and ETA. A district map sits beside the board. **Show on map** highlights one transfer's route.
 
 **Who uses it.** The district health officer and the district store team.
 
