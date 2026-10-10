@@ -68,13 +68,14 @@ export function DistrictMap({
   const [glReady, setGlReady] = useState<{ basemap: boolean } | null>(null);
   const [hover, setHover] = useState<Hover>(null);
   const [internalFlow, setInternalFlow] = useState<string | null>(null);
-  const [layersOpen, setLayersOpen] = useState(!compact);
+  const [layersPref, setLayersOpen] = useState<boolean | null>(null);
   const [play, setPlay] = useState({ playing: false, hours: 0 });
   const [width, setWidth] = useState(960);
   const frameRef = useRef<HTMLDivElement>(null);
   const clockDayRef = useRef<HTMLSpanElement>(null);
   const clockTimeRef = useRef<HTMLSpanElement>(null);
 
+  const layersOpen = layersPref ?? width >= 640;
   const nowMs = new Date(state.now).getTime();
   const [animator] = useState(() => new MapAnimator(nowMs, false));
   useEffect(() => () => animator.destroy(), [animator]);
@@ -136,8 +137,11 @@ export function DistrictMap({
     (id: string | null) => {
       setInternalFlow(id);
       onSelectTransfer?.(id && !id.startsWith("opp:") ? id : null);
+      // Recolour the map by the medicine being moved, so donor/recipient risk reads correctly.
+      const t = id ? state.transfers.find((x) => x.id === id) : undefined;
+      if (t && t.medicineId !== state.selectedMedicineId) dispatch({ type: "SELECT_MEDICINE", medicineId: t.medicineId });
     },
-    [onSelectTransfer],
+    [onSelectTransfer, state.transfers, state.selectedMedicineId, dispatch],
   );
   const selectFacility = useCallback(
     (id: string) => {
@@ -207,7 +211,7 @@ export function DistrictMap({
       </div>
 
       {/* ---- header: medicine + headline numbers ---- */}
-      <div className={styles.header}>
+      <div className={styles.header} data-overlay>
         <div className={styles.eyebrow}>
           {state.district.name} district
           <span className={styles.synthetic}>synthetic network</span>
@@ -237,8 +241,8 @@ export function DistrictMap({
 
       {/* ---- layer toggles ---- */}
       {!compact && (
-        <div className={`${styles.panel} ${styles.layersPanel}`} data-open={layersOpen}>
-          <button type="button" className={styles.panelHead} onClick={() => setLayersOpen((o) => !o)} aria-expanded={layersOpen}>
+        <div className={`${styles.panel} ${styles.layersPanel}`} data-open={layersOpen} data-overlay>
+          <button type="button" className={styles.panelHead} onClick={() => setLayersOpen(!layersOpen)} aria-expanded={layersOpen}>
             <Layers size={14} aria-hidden="true" /> Layers
           </button>
           {layersOpen && (
@@ -263,7 +267,7 @@ export function DistrictMap({
       )}
 
       {/* ---- legend ---- */}
-      <div className={`${styles.panel} ${styles.legend}`}>
+      <div className={`${styles.panel} ${styles.legend}`} data-overlay>
         <div className={styles.legendRow}>
           {RISK_ORDER.map((r) => (
             <span key={r} className={styles.legendItem}>
@@ -304,7 +308,7 @@ export function DistrictMap({
       </div>
 
       {/* ---- time-lapse ---- */}
-      <div className={`${styles.panel} ${styles.player}`}>
+      <div className={`${styles.panel} ${styles.player}`} data-overlay>
         <button type="button" className={styles.playBtn} onClick={togglePlay} aria-label={play.playing ? "Pause week time-lapse" : "Play a week of stock and transfers"}>
           {play.playing ? <Pause size={16} aria-hidden="true" /> : play.hours >= WEEK_HOURS ? <RotateCcw size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
         </button>
@@ -336,7 +340,7 @@ export function DistrictMap({
 
       {/* ---- selected transfer card ---- */}
       {selectedFlow && !compact && (
-        <div className={`${styles.panel} ${styles.flowCard}`}>
+        <div className={`${styles.panel} ${styles.flowCard}`} data-overlay>
           <button type="button" className={styles.close} onClick={() => selectFlow(null)} aria-label="Clear selected transfer">
             <X size={14} aria-hidden="true" />
           </button>

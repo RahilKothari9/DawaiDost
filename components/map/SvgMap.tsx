@@ -6,6 +6,7 @@ import { geoMercator } from "d3-geo";
 import type { Frame, MapAnimator } from "@/lib/map/animator";
 import { arcSlice, pointOnArc, type LngLat } from "@/lib/map/geometry";
 import { hubOutlinePath } from "@/lib/map/icons";
+import { facilityObstacles, overlayObstacles, placePills } from "@/lib/map/labelLayout";
 import { flowProgress, type MapFlow, type MapModel } from "@/lib/map/model";
 import { coverageColor, type MapPalette } from "@/lib/map/palette";
 import type { LayerVisibility } from "./layers";
@@ -190,8 +191,8 @@ export function SvgMap(props: SvgMapProps) {
               const [x, y] = project(pointOnArc(f.arc, flowProgress(f, model.nowMs)));
               return (
                 <g key={`dot-${f.id}`} data-flow={f.id} data-role="dot" transform={`translate(${x},${y})`} className={focus && focus.id !== f.id ? styles.svgDim : ""}>
-                  <circle r="11" className={styles.svgConsGlow} />
-                  <circle r={f.status === "approved" ? 4 : 5.5} className={styles.svgConsDot} />
+                  <circle r="8" className={styles.svgConsGlow} />
+                  <circle r={f.status === "approved" ? 3.5 : 4.5} className={styles.svgConsDot} />
                 </g>
               );
             })}
@@ -247,21 +248,29 @@ export function SvgMap(props: SvgMapProps) {
       </svg>
 
       {/* HTML labels, same classes as the MapLibre markers */}
-      {visibleFlows
-        .filter((f) => !(variant === "compact" && (f.status === "opportunity" || f.status === "delivered")))
-        .map((f) => {
-          const [x, y] = project(f.mid);
+      {(() => {
+        const labelled = new Set(model.facilities.filter((f) => facilityLabelVisible(f, selFac, variant)).map((f) => f.id));
+        const candidates = visibleFlows
+          .filter((f) => variant !== "compact" || f.id === selFlow)
+          .map((f) => ({ flow: f, text: flowLabelText(f, unitShort), focus: f.id === selFlow }));
+        // eslint-disable-next-line react-hooks/refs -- overlay boxes are read at render; size changes re-render
+        const placed = placePills(candidates, project, [...facilityObstacles(model.facilities, project, 1, labelled), ...overlayObstacles(wrapRef.current)], { w: size.w, h: size.h });
+        const byId = new Map(candidates.map((c) => [c.flow.id, c]));
+        return placed.map((pl) => {
+          const { flow: f, text } = byId.get(pl.id)!;
+          const [x0, y0] = project(pl.at);
           const cls = [styles.flowPill, styles[`pill_${f.status}`], f.primary ? "" : styles.pillSecondary, focus && focus.id !== f.id ? styles.pillDim : "", focus?.id === f.id ? styles.pillFocus : ""].join(" ");
           return (
             <div
               key={`pill-${f.id}`}
               className={`${styles.abs} ${cls}`}
-              style={{ left: x, top: y }}
+              style={{ left: x0 + pl.dx, top: y0 + pl.dy }}
               onClick={() => props.onClickFlow(f.id)}
-              dangerouslySetInnerHTML={{ __html: flowLabelText(f, unitShort) }}
+              dangerouslySetInnerHTML={{ __html: text }}
             />
           );
-        })}
+        });
+      })()}
       {model.facilities
         .filter((f) => facilityLabelVisible(f, selFac, variant))
         .map((f) => {

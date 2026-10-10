@@ -9,6 +9,7 @@ import { DASH_SEQUENCE, type Frame, type MapAnimator } from "@/lib/map/animator"
 import { BASEMAP_URL, restyleBasemap } from "@/lib/map/basemap";
 import { arcSlice, easeInOut, pointOnArc, type LngLat } from "@/lib/map/geometry";
 import { buildIcons, hubIconId, type HubType } from "@/lib/map/icons";
+import { facilityObstacles, overlayObstacles, placePills } from "@/lib/map/labelLayout";
 import { flowProgress, type MapFlow, type MapModel } from "@/lib/map/model";
 import { coverageStops, type MapPalette } from "@/lib/map/palette";
 import type { LayerVisibility } from "./layers";
@@ -109,22 +110,22 @@ function installLayers(map: MLMap, p: MapPalette) {
   const add = (layer: Expr) => map.addLayer(layer);
   const stops = coverageStops(p).flatMap(([v, c]) => [v, c]);
 
-  add({ id: "dd-coverage", type: "fill", source: "dd-coverage", paint: { "fill-color": ["interpolate", ["linear"], ["get", "v"], ...stops], "fill-opacity": 0.3, "fill-antialias": false } });
+  add({ id: "dd-coverage", type: "fill", source: "dd-coverage", paint: { "fill-color": ["interpolate", ["linear"], ["get", "v"], ...stops], "fill-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.32, 10, 0.16, 12, 0.08], "fill-antialias": false } });
   add({ id: "dd-mask", type: "fill", source: "dd-mask", paint: { "fill-color": p.bg, "fill-opacity": 0.72 } });
   add({ id: "dd-outline-glow", type: "line", source: "dd-outline", paint: { "line-color": p.ink, "line-opacity": 0.05, "line-width": 10, "line-blur": 6 } });
-  add({ id: "dd-outline", type: "line", source: "dd-outline", paint: { "line-color": p.ink2, "line-opacity": 0.45, "line-width": 1.2, "line-dasharray": [4, 2.5] } });
+  add({ id: "dd-outline", type: "line", source: "dd-outline", paint: { "line-color": p.ink2, "line-opacity": 0.35, "line-width": 1, "line-dasharray": [4, 2.5] } });
   add({ id: "dd-spokes", type: "line", source: "dd-spokes", layout: { "line-cap": "round" }, paint: { "line-color": p.ink2, "line-opacity": 0.38, "line-width": 1, "line-dasharray": [0.6, 2.4] } });
 
   const dimOpacity = (base: number): Expr => ["*", base, ["case", ["get", "dim"], 0.28, ["get", "primary"], 1, 0.62]];
-  add({ id: "dd-flow-hl", type: "line", source: "dd-flows", filter: ["all", ["get", "hl"], ["!=", ["get", "status"], "opportunity"]], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": 0.2, "line-width": 12, "line-blur": 4 } });
-  add({ id: "dd-flow-glow", type: "line", source: "dd-flows", filter: ["match", ["get", "status"], ["approved", "in_transit"], true, false], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.16), "line-width": 9, "line-blur": 5 } });
-  add({ id: "dd-flow-opportunity", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "opportunity"], layout: { "line-cap": "round" }, paint: { "line-color": p.risk.surplus, "line-opacity": ["case", ["get", "hl"], 0.95, dimOpacity(0.6)], "line-width": ["case", ["get", "hl"], 2.4, 1.6], "line-dasharray": [0.5, 2] } });
-  add({ id: "dd-flow-delivered", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "delivered"], layout: { "line-cap": "round" }, paint: { "line-color": p.risk.ok, "line-opacity": dimOpacity(0.42), "line-width": 1.8 } });
-  add({ id: "dd-flow-proposed", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "proposed"], layout: { "line-cap": "butt" }, paint: { "line-color": p.ink2, "line-opacity": dimOpacity(0.7), "line-width": 2.2, "line-dasharray": [2.2, 1.6] } });
-  add({ id: "dd-flow-approved", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "approved"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.95), "line-width": 3.2 } });
-  add({ id: "dd-flow-transit-base", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "in_transit"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.22), "line-width": 4 } });
-  add({ id: "dd-flow-transit-dash", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "in_transit"], paint: { "line-color": p.accent, "line-opacity": dimOpacity(1), "line-width": 3, "line-dasharray": DASH_SEQUENCE[0] } });
-  add({ id: "dd-trail", type: "line", source: "dd-motion", filter: ["==", ["get", "kind"], "trail"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": ["*", 0.85, ["case", ["get", "dim"], 0.3, 1]], "line-width": 3.4 } });
+  add({ id: "dd-flow-hl", type: "line", source: "dd-flows", filter: ["all", ["get", "hl"], ["!=", ["get", "status"], "opportunity"]], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": 0.12, "line-width": 9, "line-blur": 4 } });
+  add({ id: "dd-flow-glow", type: "line", source: "dd-flows", filter: ["match", ["get", "status"], ["approved", "in_transit"], true, false], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.07), "line-width": 7, "line-blur": 4 } });
+  add({ id: "dd-flow-opportunity", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "opportunity"], layout: { "line-cap": "round" }, paint: { "line-color": p.risk.surplus, "line-opacity": ["case", ["get", "hl"], 0.95, dimOpacity(0.6)], "line-width": ["case", ["get", "hl"], 1.8, 1.2], "line-dasharray": [0.5, 2.2] } });
+  add({ id: "dd-flow-delivered", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "delivered"], layout: { "line-cap": "round" }, paint: { "line-color": p.risk.ok, "line-opacity": dimOpacity(0.4), "line-width": 1.4 } });
+  add({ id: "dd-flow-proposed", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "proposed"], layout: { "line-cap": "butt" }, paint: { "line-color": p.ink2, "line-opacity": dimOpacity(0.65), "line-width": 1.6, "line-dasharray": [2.6, 1.8] } });
+  add({ id: "dd-flow-approved", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "approved"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.9), "line-width": 2.2 } });
+  add({ id: "dd-flow-transit-base", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "in_transit"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.16), "line-width": 3 } });
+  add({ id: "dd-flow-transit-dash", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "in_transit"], paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.9), "line-width": 2, "line-dasharray": DASH_SEQUENCE[0] } });
+  add({ id: "dd-trail", type: "line", source: "dd-motion", filter: ["==", ["get", "kind"], "trail"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": ["*", 0.85, ["case", ["get", "dim"], 0.3, 1]], "line-width": 2.4 } });
   add({
     id: "dd-chevrons",
     type: "symbol",
@@ -147,9 +148,9 @@ function installLayers(map: MLMap, p: MapPalette) {
 
   const alertFilter: Expr = ["all", ["get", "alert"], ["!=", ["get", "type"], "WAREHOUSE"]];
   const haloColor: Expr = ["match", ["get", "risk"], "stockout", p.risk.stockout, p.risk.critical];
-  add({ id: "dd-halo-a", type: "circle", source: "dd-facilities", filter: alertFilter, paint: { "circle-radius": radiusExpr(8), "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": haloColor, "circle-stroke-width": 2, "circle-stroke-opacity": 0.4 } });
-  add({ id: "dd-halo-b", type: "circle", source: "dd-facilities", filter: alertFilter, paint: { "circle-radius": radiusExpr(14), "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": haloColor, "circle-stroke-width": 1.5, "circle-stroke-opacity": 0.2 } });
-  add({ id: "dd-fac-glow", type: "circle", source: "dd-facilities", filter: alertFilter, paint: { "circle-radius": radiusExpr(6), "circle-color": haloColor, "circle-opacity": 0.16, "circle-blur": 0.6 } });
+  add({ id: "dd-halo-a", type: "circle", source: "dd-facilities", filter: alertFilter, paint: { "circle-radius": radiusExpr(8), "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": haloColor, "circle-stroke-width": 1.5, "circle-stroke-opacity": 0.25 } });
+  add({ id: "dd-halo-b", type: "circle", source: "dd-facilities", filter: alertFilter, paint: { "circle-radius": radiusExpr(14), "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": haloColor, "circle-stroke-width": 1, "circle-stroke-opacity": 0.12 } });
+  add({ id: "dd-fac-glow", type: "circle", source: "dd-facilities", filter: alertFilter, paint: { "circle-radius": radiusExpr(6), "circle-color": haloColor, "circle-opacity": 0.07, "circle-blur": 0.6 } });
   add({ id: "dd-fac-shadow", type: "circle", source: "dd-facilities", filter: ["==", ["get", "type"], "PHC"], paint: { "circle-radius": radiusExpr(1.5), "circle-color": p.ink, "circle-opacity": ["*", 0.22, ["get", "op"]], "circle-blur": 0.7, "circle-translate": [0, 1.5] } });
   add({
     id: "dd-fac-phc",
@@ -174,8 +175,8 @@ function installLayers(map: MLMap, p: MapPalette) {
   add({ id: "dd-fac-hover", type: "circle", source: "dd-facilities", filter: ["get", "hov"], paint: { "circle-radius": radiusExpr(5), "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": p.ink2, "circle-stroke-width": 1.5, "circle-stroke-opacity": 0.6 } });
   add({ id: "dd-fac-ring", type: "circle", source: "dd-facilities", filter: ["get", "sel"], paint: { "circle-radius": radiusExpr(6), "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": p.ink, "circle-stroke-width": 2.5 } });
 
-  add({ id: "dd-cons-glow", type: "circle", source: "dd-motion", filter: ["==", ["get", "kind"], "dot"], paint: { "circle-radius": 12, "circle-color": p.accent, "circle-opacity": ["*", 0.25, ["case", ["get", "dim"], 0.3, 1]], "circle-blur": 0.5 } });
-  add({ id: "dd-cons-dot", type: "circle", source: "dd-motion", filter: ["==", ["get", "kind"], "dot"], paint: { "circle-radius": ["case", ["get", "waiting"], 4, 5.5], "circle-color": "#ffffff", "circle-stroke-color": p.accent, "circle-stroke-width": ["case", ["get", "waiting"], 2, 3], "circle-opacity": ["case", ["get", "dim"], 0.4, 1], "circle-stroke-opacity": ["case", ["get", "dim"], 0.4, 1] } });
+  add({ id: "dd-cons-glow", type: "circle", source: "dd-motion", filter: ["==", ["get", "kind"], "dot"], paint: { "circle-radius": 12, "circle-color": p.accent, "circle-opacity": ["*", 0.14, ["case", ["get", "dim"], 0.3, 1]], "circle-blur": 0.5 } });
+  add({ id: "dd-cons-dot", type: "circle", source: "dd-motion", filter: ["==", ["get", "kind"], "dot"], paint: { "circle-radius": ["case", ["get", "waiting"], 3.5, 4.5], "circle-color": p.accent, "circle-stroke-color": "#ffffff", "circle-stroke-width": 2, "circle-opacity": ["case", ["get", "dim"], 0.4, 1], "circle-stroke-opacity": ["case", ["get", "dim"], 0.4, 1] } });
 }
 
 class GlEngine {
@@ -253,7 +254,7 @@ class GlEngine {
         style: basemap ?? blankStyle(p),
         bounds: model.bounds,
         fitBoundsOptions: { padding },
-        attributionControl: { compact: true },
+        attributionControl: false,
         dragRotate: false,
         pitchWithRotate: false,
         touchPitch: false,
@@ -268,6 +269,8 @@ class GlEngine {
       return;
     }
     this.map = map;
+    // Full (non-collapsible) attribution, bottom-right; overlays are laid out to never cover it.
+    map.addControl(new ml.AttributionControl({ compact: false }), "bottom-right");
     map.touchZoomRotate.disableRotation();
 
     this.loadTimer = setTimeout(() => {
@@ -353,12 +356,12 @@ class GlEngine {
     if (!fr.reduced) {
       const phaseA = (fr.t % 2200) / 2200;
       const phaseB = ((fr.t + 1100) % 2200) / 2200;
-      map.setPaintProperty("dd-halo-a", "circle-radius", radiusExpr(4 + easeInOut(phaseA) * 18));
-      map.setPaintProperty("dd-halo-a", "circle-stroke-opacity", 0.55 * (1 - phaseA));
-      map.setPaintProperty("dd-halo-b", "circle-radius", radiusExpr(4 + easeInOut(phaseB) * 18));
-      map.setPaintProperty("dd-halo-b", "circle-stroke-opacity", 0.55 * (1 - phaseB));
+      map.setPaintProperty("dd-halo-a", "circle-radius", radiusExpr(3 + easeInOut(phaseA) * 13));
+      map.setPaintProperty("dd-halo-a", "circle-stroke-opacity", 0.3 * (1 - phaseA));
+      map.setPaintProperty("dd-halo-b", "circle-radius", radiusExpr(3 + easeInOut(phaseB) * 13));
+      map.setPaintProperty("dd-halo-b", "circle-stroke-opacity", 0.3 * (1 - phaseB));
       const g = 0.5 + 0.5 * Math.sin(fr.t / 260);
-      map.setPaintProperty("dd-cons-glow", "circle-radius", 9 + g * 6);
+      map.setPaintProperty("dd-cons-glow", "circle-radius", 7 + g * 3);
     }
 
     // 3. consignments, travelled trail and arrival pings — only when something changed
@@ -371,6 +374,8 @@ class GlEngine {
 
 
   private bindEvents(map: MLMap) {
+    // Pills are laid out in screen space, so re-place them after the camera settles.
+    map.on("moveend", () => this.syncMarkers(map, this.props.selectedFlowId));
     let hoverFac: string | null = null;
     let hoverFlow: string | null = null;
     const pick = (e: MapMouseEvent) => {
@@ -498,19 +503,36 @@ class GlEngine {
     const { model, layers, selectedFacilityId: selFac, variant, unitShort } = this.props;
     const want = new Map<string, { at: LngLat; text: string; cls: string; anchor: "center" | "top" | "left"; offset: [number, number]; flowId?: string; facId?: string }>();
 
-    if (layers.transfers) {
-      for (const f of model.flows) {
-        if (f.status === "opportunity" && (!layers.opportunities || variant === "compact")) continue;
-        if (variant === "compact" && f.status === "delivered") continue;
-        const cls = [styles.flowPill, styles[`pill_${f.status}`], f.primary ? "" : styles.pillSecondary, focusId && focusId !== f.id ? styles.pillDim : "", focusId === f.id ? styles.pillFocus : ""].join(" ");
-        want.set(`flow:${f.id}`, { at: f.mid, text: flowLabelText(f, unitShort), cls, anchor: "center", offset: [0, 0], flowId: f.id });
-      }
-    }
+    const labelled = new Set<string>();
     for (const f of model.facilities) {
       if (!facilityLabelVisible(f, selFac, variant)) continue;
+      labelled.add(f.id);
       const cls = [styles.facLabel, f.id === selFac ? styles.facLabelSel : "", f.risk ? styles[`facLabel_${f.risk}`] : ""].join(" ");
       const side = f.type === "WAREHOUSE" && f.id !== selFac;
       want.set(`fac:${f.id}`, { at: f.lngLat, text: escapeHtml(f.name), cls, anchor: side ? "left" : "top", offset: side ? [f.radius + 8, 0] : [0, f.radius + 8], facId: f.id });
+    }
+
+    if (layers.transfers) {
+      const candidates = model.flows
+        .filter((f) => !(f.status === "opportunity" && !layers.opportunities))
+        // compact overview: only the route the user is looking at gets a label
+        .filter((f) => variant !== "compact" || f.id === focusId)
+        .map((f) => ({ flow: f, text: flowLabelText(f, unitShort), focus: f.id === focusId }));
+      const project = (ll: LngLat): [number, number] => {
+        const pt = map.project(ll);
+        return [pt.x, pt.y];
+      };
+      const z = map.getZoom();
+      const scale = z <= 7 ? 0.8 : z <= 10 ? 0.8 + ((z - 7) / 3) * 0.3 : Math.min(1.6, 1.1 + ((z - 10) / 3) * 0.5);
+      const canvas = map.getCanvas();
+      const obstacles = [...facilityObstacles(model.facilities, project, scale, labelled), ...overlayObstacles(canvas)];
+      const placed = placePills(candidates, project, obstacles, { w: canvas.clientWidth, h: canvas.clientHeight });
+      const textById = new Map(candidates.map((c) => [c.flow.id, c]));
+      for (const pl of placed) {
+        const f = textById.get(pl.id)!.flow;
+        const cls = [styles.flowPill, styles[`pill_${f.status}`], f.primary ? "" : styles.pillSecondary, focusId && focusId !== f.id ? styles.pillDim : "", focusId === f.id ? styles.pillFocus : ""].join(" ");
+        want.set(`flow:${f.id}`, { at: pl.at, text: textById.get(pl.id)!.text, cls, anchor: "center", offset: [pl.dx, pl.dy], flowId: f.id });
+      }
     }
 
     const have = this.markers;

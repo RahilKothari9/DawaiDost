@@ -55,6 +55,8 @@ export type MapFlow = {
   updatedMs: number;
   arc: Arc;
   mid: LngLat;
+  /** Pixel offset that lifts the quantity pill off the arc apex (so the route stays visible). */
+  labelOffset: [number, number];
   primary: boolean; // belongs to the selected medicine
   medicineLabel: string;
 };
@@ -156,7 +158,7 @@ export function buildMapModel(state: DistrictState, assessments: StockAssessment
   const facilityById = new Map(facilities.map((f) => [f.id, f]));
 
   const flows: MapFlow[] = [];
-  const medLabel = new Map(state.medicines.map((m) => [m.id, m.shortName ?? m.name]));
+  const medLabel = new Map(state.medicines.map((m) => [m.id, m.name]));
   const mkFlow = (
     id: string,
     status: FlowStatus,
@@ -176,7 +178,7 @@ export function buildMapModel(state: DistrictState, assessments: StockAssessment
     flows.push({
       id, status, medicineId, fromId, toId, fromName: from.name, toName: to.name, quantity, etaHours,
       distanceKm: distanceKm || haversineKm({ lat: from.lngLat[1], lng: from.lngLat[0] }, { lat: to.lngLat[1], lng: to.lngLat[0] }),
-      departMs, updatedMs, arc, mid: pointOnArc(arc, 0.5), primary: medicineId === medId,
+      departMs, updatedMs, arc, mid: pointOnArc(arc, 0.5), labelOffset: [arc.normal[0] * 15, arc.normal[1] * 15], primary: medicineId === medId,
       medicineLabel: medLabel.get(medicineId) ?? medicineId,
     });
   };

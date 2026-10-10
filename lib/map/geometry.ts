@@ -21,6 +21,8 @@ export type Arc = {
   p1: [number, number];
   p2: [number, number];
   cosLat: number;
+  /** Unit left-hand normal of the chord, screen-space ready: [x right, y down]. */
+  normal: [number, number];
 };
 
 /**
@@ -38,7 +40,7 @@ export function makeArc(a: LngLat, b: LngLat, bend = 0.24, samples = 48): Arc {
   const nx = -dy / len;
   const ny = dx / len;
   const p1: [number, number] = [(p0[0] + p2[0]) / 2 + nx * len * bend, (p0[1] + p2[1]) / 2 + ny * len * bend];
-  const arc: Arc = { coords: [], p0, p1, p2, cosLat };
+  const arc: Arc = { coords: [], p0, p1, p2, cosLat, normal: bend >= 0 ? [nx, -ny] : [-nx, ny] };
   for (let i = 0; i <= samples; i++) arc.coords.push(pointOnArc(arc, i / samples));
   return arc;
 }
