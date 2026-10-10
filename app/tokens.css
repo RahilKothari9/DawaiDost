@@ -1,0 +1,32 @@
+/* Shared design tokens. Names are a cross-team contract; values may be tuned by the shell agent. */
+:root {
+  --bg: #f2f0e9;
+  --surface: #fbfaf6;
+  --surface-2: #ebe8df;
+  --surface-ink: #14130f; /* dark panels */
+  --ink: #14130f;
+  --ink-2: #3b3a35;
+  --muted: #77746b;
+  --line: #dcd8cc;
+  --line-strong: #b9b4a5;
+
+  --accent: #3d2fe0;       /* OpenAI decision layer, transfers in motion */
+  --accent-ink: #ffffff;
+  --accent-soft: #e6e3ff;
+
+  --risk-stockout: #a8201a;
+  --risk-critical: #e2531f;
+  --risk-low: #d69a07;
+  --risk-ok: #5d8a6e;
+  --risk-surplus: #1f6f8b;
+
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, monospace;
+  --font-display: "Instrument Serif", Georgia, serif;
+
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 2px rgb(20 19 15 / 6%), 0 8px 24px rgb(20 19 15 / 8%);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
