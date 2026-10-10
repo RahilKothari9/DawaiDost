@@ -9,8 +9,24 @@ import { URGENCY_LEVELS, type AiDecisionMeta, type AiDecisionRecord, type Urgenc
 
 export const ACTIONS = actionChoices.map((c) => c.value) as DecisionAction[];
 
+/**
+ * The exact next_action instruction the product sends (single source of truth; lib/evals imports it).
+ * Criteria in priority order, derived from the eval labeling policy (explicit criteria scored 94% vs 64%).
+ */
 export const NEXT_ACTION_INSTRUCTIONS =
-  "Choose the single safest next operational step for the target facility. Consider report verification (verified flag, reportFlag, report age), days of stock against the resupply lead time plus safety buffer, inbound transfers, donor surplus after its reserve, and whether the action can bridge the gap. Prefer a local transfer when a verified donor has sufficient surplus and preserve every donor's reserve. Do not treat a transfer as a cure for upstream shortages: when upstream supply is delayed or unavailable and local surplus cannot cover the gap, escalate. The officer must approve all actions. If the snapshot contains a counterfactual field, judge that hypothetical scenario as stated.";
+  "Choose the single safest next operational step for the target facility. Apply these checks in order and stop at the first that holds. " +
+  "1) Verify first: if the target's count is unverified, has a reportFlag, is already under recount, or its dailyUse is far from weeklyDispensedTrend divided by 7, choose verify_count. " +
+  "2) Transfer: if one verified donor's transferable units (already net of its own reserve and open transfers) cover the target's gapUnits (coversGapPct 100), or nearly all of it (coversGapPct 75 or more), choose transfer_surplus. A donor that covers only a small part of the gap does not qualify, and unverified donors never count. " +
+  "3) Escalate: if no verified donor qualifies and upstream status is delayed or unavailable, or districtStore.daysOfDistrictDemand is below the medicine's leadTimeDays, choose escalate_supply_gap. Do not treat a transfer as a cure for upstream shortages. " +
+  "4) Otherwise choose draft_indent: resupply arrives in time and local surplus cannot cover the gap. " +
+  "If the snapshot contains a counterfactual field, judge that hypothetical scenario as stated. The officer must approve all actions.";
+
+/** Product choice set: same four actions; transfer_surplus states its coverage condition explicitly. */
+export const DISTRICT_ACTION_CHOICES: { value: DecisionAction; description: string }[] = actionChoices.map((c) =>
+  c.value === "transfer_surplus"
+    ? { value: c.value, description: "Move surplus from a verified nearby donor, preserving its safety reserve. Applies only when that donor's safe surplus covers the target's gap (or nearly all of it)." }
+    : c,
+);
 
 // ---------- request validation ----------
 
@@ -76,7 +92,7 @@ export function extractDonors(snapshot: Record<string, unknown>, only?: string[]
 
 export function buildQuestions(donors: DonorOption[]): DecisionCreateParams["questions"] {
   const qs: DecisionCreateParams["questions"] = [
-    { type: "choice", name: "next_action", instructions: NEXT_ACTION_INSTRUCTIONS, choices: actionChoices },
+    { type: "choice", name: "next_action", instructions: NEXT_ACTION_INSTRUCTIONS, choices: DISTRICT_ACTION_CHOICES },
     {
       type: "score",
       name: "urgency",
@@ -223,7 +239,7 @@ export function fallbackDecision(snapshot: Record<string, unknown>, donors: Dono
   const doubtful = t.verified === false || !!t.reportFlag || useMismatch;
   const best = donors[0];
   const totalTransferable = donors.reduce((s, d) => s + d.transferable, 0);
-  const transferCovers = !!best && (gap <= 0 || best.transferable >= gap * 0.6 || totalTransferable >= gap);
+  const transferCovers = !!best && (gap <= 0 || best.transferable >= gap * 0.75 || totalTransferable >= gap);
   const upstreamBad = f.upstream?.status === "delayed" || f.upstream?.status === "unavailable";
   const storeShort = typeof f.districtStore?.daysOfDistrictDemand === "number" && f.districtStore.daysOfDistrictDemand < lead;
 

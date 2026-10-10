@@ -225,3 +225,14 @@ describe("daily use contradicting the dispensing trend", () => {
     expect(fb.meta.ruleTrace?.[0]).toMatch(/contradicts trend/);
   });
 });
+
+describe("next_action prompt", () => {
+  it("states the criteria in priority order and conditions transfer on coverage", () => {
+    const q = buildQuestions([]).find((x) => x.name === "next_action") as { instructions: string; choices: { value: string; description?: string }[] };
+    const order = ["verify_count", "transfer_surplus", "escalate_supply_gap", "draft_indent"].map((a) => q.instructions.indexOf(`choose ${a}`));
+    expect(order.every((i, k) => i > 0 && (k === 0 || i > order[k - 1]))).toBe(true);
+    expect(q.instructions).toMatch(/counterfactual/);
+    expect(q.instructions).toMatch(/officer must approve/);
+    expect(q.choices.find((c) => c.value === "transfer_surplus")?.description).toMatch(/only when/);
+  });
+});
