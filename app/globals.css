@@ -677,6 +677,7 @@ a.toast__title:hover { text-decoration: underline; text-underline-offset: 3px; }
   .grid-cc, .grid-voice, .cc-grid, .decisions-layout { grid-template-columns: minmax(0, 1fr); }
   .cc-inbox-slot { min-height: 0; }
   .cc-inbox-slot > .cc-inbox { position: static; }
+  .cc-inbox-slot > .cc-inbox > .ui-panel__body { -webkit-mask-image: none; mask-image: none; padding-bottom: 18px; }
   .sticky-col { position: static; }
   .choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .choice:nth-child(3) { border-left: 0; }
