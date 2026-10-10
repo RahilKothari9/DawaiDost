@@ -234,6 +234,20 @@ OPENAI_DECISIONS_MODEL=gpt-6-luna
 
 Each other model has an optional override. See [Configuration](docs/openai/overview.md#configuration). Restart the dev server after you change the environment values. Without a key, the app runs the full workflow with labeled demo responses.
 
+**Check which key is in use.** A system or user-level `OPENAI_API_KEY` environment variable takes precedence over `.env.local`. Next.js and `node --env-file` never override a variable that is already set. If the app uses the wrong key, remove the system variable or set the right one in your shell. Then open `http://localhost:3000/api/health`. It reports `"mode": "live"` or `"mode": "demo"` and the Decisions and Realtime model names. It never returns the key.
+
+**Run a second, isolated dev server.** `next.config.ts` reads the build folder from `NEXT_DIST_DIR`, so two dev servers can run side by side without sharing `.next`:
+
+```bash
+NEXT_DIST_DIR=.next-preview npx next dev -p 3001
+```
+
+In PowerShell:
+
+```powershell
+$env:NEXT_DIST_DIR = ".next-preview"; npx next dev -p 3001
+```
+
 Run the checks:
 
 ```powershell
