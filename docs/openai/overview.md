@@ -28,9 +28,12 @@ flowchart LR
 | Responses API, structured outputs | `gpt-5.4-mini` | Write indent justifications; code sets every quantity | `/api/indent` | [Responses API](responses-api.md) |
 | Responses API, structured outputs | `gpt-5.5` | Draft the escalation memo to the state; every number is checked | `/api/escalations/memo` | [Responses API](responses-api.md) |
 | Responses API, structured outputs | `gpt-5.4-mini` | Map a patient's question to medicine and place ids | `/api/find/ask` | [Responses API](responses-api.md) |
-| Text to speech | `gpt-4o-mini-tts` | Read the brief and Find medicine answers aloud | `/api/briefing/speech`, `/api/find/speak` | [Audio](audio.md) |
+| Responses API, structured outputs | `gpt-5.4-mini` | Extract shelf counts from a Hindi call transcript | `/api/voice/extract` | [Responses API](responses-api.md) |
+| Responses API, structured outputs | `gpt-5.4-mini` | English gloss of Hindi transcript lines | `/api/voice/gloss` | [Responses API](responses-api.md) |
+| Realtime input transcription | `gpt-transcribe` | Live captions of the speaker during a voice call | inside `/api/realtime/session` | [Realtime API](realtime-api.md) |
+| Text to speech | `gpt-4o-mini-tts` | Read the brief, Find medicine answers, and Hindi voice notes aloud | `/api/briefing/speech`, `/api/find/speak`, `/api/voice/tts` | [Audio](audio.md) |
 | Speech to text | `gpt-4o-mini-transcribe` | Transcribe a spoken Find medicine question | `/api/find/ask` | [Audio](audio.md) |
-| Decisions API evals | `gpt-6-luna` and others | Measure accuracy and calibration on 50 labeled cases | `scripts/evals/run.ts` | [Evals](evals.md) |
+| Decisions API evals | `gpt-6-luna` and others | Measure accuracy and calibration on 50 labeled cases | `/evals`, `/api/evals/run`, `scripts/evals/run.ts` | [Evals](evals.md) |
 
 ## Why OpenAI for this problem
 
@@ -69,6 +72,7 @@ The models never set a stock number, and the code never makes the operational ju
 | `OPENAI_INDENT_MODEL` | `gpt-5.4-mini` | Indent drafting |
 | `OPENAI_MEMO_MODEL` | `gpt-5.5` | Escalation memo |
 | `OPENAI_TTS_MODEL` | `gpt-4o-mini-tts` | Briefing speech |
+| `OPENAI_VOICE_EXTRACT_MODEL` | `gpt-5.4-mini` | Voice report extraction |
 | `OPENAI_FIND_TRANSCRIBE_MODEL` | `gpt-4o-mini-transcribe` | Find medicine speech to text |
 | `OPENAI_FIND_PARSE_MODEL` | `gpt-5.4-mini` | Find medicine question parsing |
 | `OPENAI_FIND_TTS_MODEL` | `gpt-4o-mini-tts` | Find medicine spoken answer |

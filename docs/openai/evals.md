@@ -2,7 +2,7 @@
 
 A recommendation engine for public health must show that it picks the right action. Dawai Dost has a labeled evaluation set for the Decisions API. It measures accuracy, calibration, latency, and token use, and it compares the model with the deterministic rules that the product uses as a fallback.
 
-Source: [`lib/evals/cases.ts`](../../lib/evals/cases.ts), [`lib/evals/run.ts`](../../lib/evals/run.ts), [`lib/evals/metrics.ts`](../../lib/evals/metrics.ts), [`lib/evals/report.ts`](../../lib/evals/report.ts), [`scripts/evals/run.ts`](../../scripts/evals/run.ts)
+Page: **Decision evals** (`/evals`). Source: [`app/evals/page.tsx`](../../app/evals/page.tsx), [`app/api/evals/run/route.ts`](../../app/api/evals/run/route.ts), [`lib/evals/cases.ts`](../../lib/evals/cases.ts), [`lib/evals/run.ts`](../../lib/evals/run.ts), [`lib/evals/metrics.ts`](../../lib/evals/metrics.ts), [`lib/evals/report.ts`](../../lib/evals/report.ts), [`scripts/evals/run.ts`](../../scripts/evals/run.ts)
 
 ## The case set
 
@@ -64,13 +64,31 @@ The runner also grades the product's deterministic fallback (`fallbackDecision()
 | Tokens per case | Input and output tokens. Cost is shown only when a price is set in `PRICING`; all prices are empty in the repository. |
 | Accuracy by category | Where the model is strong or weak |
 
-## How to run
+## The /evals page
+
+The **Decision evals** page asks one question: "Does the model pick the right action?" It reads the newest `data/evals/results-*.json` file and shows:
+
+- headline accuracy on unambiguous cases, the rules baseline, calibration error (ECE), and latency p50 / p95
+- **Models and prompts**: accuracy, strict accuracy, macro F1, Brier score, tokens per call, cost, and failures for each model and prompt variant, next to the deterministic fallback
+- a **Confusion matrix** and a **Reliability** diagram
+- **Where model judgment differs from the rules**: cases the model got right and the rules got wrong, and the reverse
+- a case explorer with each case's expected action, the rules baseline, the Decisions API probabilities, the rules that fired, and the exact snapshot sent
+
+When no results file exists, the page says "No committed Decisions API results yet." and shows the rules baseline only.
+
+### Run it live
+
+The **Run it live** panel streams a fresh run from the browser. The button **Run 10 cases live** calls `POST /api/evals/run`, which sends the 10-case subset to the live Decisions API with a concurrency of 4 and streams each result as NDJSON, next to the rules baseline for the same case. The officer can pick the model (`gpt-6-luna`, `gpt-6-sol`, `gpt-6.1-sol`, `gpt-5.5`, or `gpt-5.4-mini`) and the prompt variant. Without a key, the route says that a live run is not possible.
+
+## How to run from the command line
 
 The command-line runner calls the live Decisions API and writes a results file. It needs `OPENAI_API_KEY` in `.env.local`.
 
 ```powershell
-node --env-file=.env.local --experimental-transform-types --no-warnings --import ./scripts/evals/register.mjs scripts/evals/run.ts
+node scripts/evals/run.mjs
 ```
+
+The launcher runs [`scripts/evals/run.ts`](../../scripts/evals/run.ts) with Node's built-in TypeScript support and loads `.env.local`. It passes all options through.
 
 Options:
 
@@ -85,9 +103,27 @@ The runner probes one call first. If the key fails, it stops and writes nothing.
 
 The results file (`dawai-dost/evals@1`) stores each case, its snapshot, the exact instructions sent for each configuration, every result, and the baseline. Anyone can recompute the metrics from the file.
 
-A smaller balanced subset of 10 cases (`T01`, `N01`, `R01`, `S02`, `V01`, `V05`, `E01`, `E04`, `U01`, `A01`) is defined for a live run during the demo.
+A smaller balanced subset of 10 cases (`T01`, `N01`, `R01`, `S02`, `V01`, `V05`, `E01`, `E04`, `U01`, `A01`) is used for the live run on the `/evals` page.
 
 ## Results
+
+### Rules baseline (measured)
+
+The deterministic fallback needs no API key, so we can measure it now. On the 50 cases, at the current commit:
+
+| Metric | Value |
+| --- | ---: |
+| Accuracy (with accepted alternatives) | 90% (45 of 50) |
+| Strict accuracy | 86% |
+| Unambiguous cases | 87.5% (35 of 40) |
+| Ambiguous cases | 100% (10 of 10) |
+| Macro F1 | 0.88 |
+
+The rules are perfect on clear transfers, reserve-blocked donors, small surplus, district shortages, near-expiry donors, and partial cover. They miss **all 3 unverified-donor cases**, 1 of 3 zero-consumption cases, and 1 of 8 suspicious-count cases. These are the cases where judgment across several signals matters most, and where the Decisions API must do better to justify its place.
+
+The rules' probabilities are fixed templates, so calibration metrics for the baseline are not meaningful.
+
+### Decisions API (live)
 
 No live results file is committed yet. We will publish the numbers here only after a real run. We do not report accuracy that we have not measured.
 

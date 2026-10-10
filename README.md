@@ -12,10 +12,10 @@ The pharmacist does not need to fill in a form. The officer does not need to rea
 | --- | --- | --- |
 | **Decisions API** | `gpt-6-luna` | The decision engine. One call answers six questions: the next action (one of four, with a probability for each), urgency, recount need, indent timing, best donor, and whether a transfer closes the gap. A batch route streams decisions for the whole district. |
 | **Realtime API** | `gpt-realtime-2.1` | The voice check-in. A natural conversation in Hindi over WebRTC, with a short-lived client secret. |
-| **Responses API** (structured outputs) | `gpt-5.4-mini`, `gpt-6-sol`, `gpt-5.5` | Writes from computed facts: decision explanations and the morning brief in English and Hindi, indent justifications, and the escalation memo to the state. Every memo number is checked against the facts. |
+| **Responses API** (structured outputs) | `gpt-5.4-mini`, `gpt-6-sol`, `gpt-5.5` | Extracts shelf counts from the Hindi call transcript. Writes from computed facts: decision explanations and the morning brief in English and Hindi, indent justifications, and the escalation memo to the state. Every memo number is checked against the facts. |
 | **Responses API** (function tools, streaming) | `gpt-5.5` | "Ask the district": answers free questions only from tool results, and shows each tool call. |
 | **Text to speech** | `gpt-4o-mini-tts` | Reads the brief and public availability answers aloud in Hindi or English. |
-| **Speech to text** | `gpt-4o-mini-transcribe` | Transcribes a spoken "Is my medicine in stock?" question from a patient or ASHA worker. |
+| **Speech to text** | `gpt-transcribe`, `gpt-4o-mini-transcribe` | Live captions during the Realtime call, and transcription of a spoken "Is my medicine in stock?" question from a patient or ASHA worker. |
 | **Evals** | `gpt-6-luna` and others | 50 labeled cases grade the Decisions API against a written policy and against the rule-based fallback. |
 
 Code calculates every stock number. The models choose and write. The officer approves. Every AI feature has a labeled fallback, so the demo runs without a key.
@@ -179,11 +179,15 @@ Vitest covers the stock engine, the transfer planner, the reducer and simulation
 | `/decisions` | Every Decisions API recommendation, with probabilities, waiting for approval |
 | `/map` | Every clinic in the district by risk, with transfers on the road |
 | `/transfers` | Medicine moving between clinics, from proposal to delivery |
-| `/voice` | Weekly Hindi stock calls with pharmacists |
+| `/escalations` | Gaps the district cannot close locally, with a memo to the state |
+| `/voice` | Weekly Hindi stock calls with pharmacists (three Realtime voice modes) |
 | `/stock` | Days of stock for every clinic and medicine |
 | `/briefing` | The district brief, questions, and indents |
+| `/evals` | How well the Decisions API picks the right action on 50 labeled cases |
 | `/activity` | Who did what, and when |
 | `/about` | How the loop works, the four actions, and the research |
+| `/pharmacist` | Hindi-first phone app for the PHC pharmacist: counts, recounts, dispatch, and receipt |
+| `/find` | Public page: is my medicine in stock nearby? Hindi voice or text |
 
 **API**
 
@@ -200,7 +204,11 @@ Vitest covers the stock engine, the transfer planner, the reducer and simulation
 | `/api/escalations/memo` | `POST` | Escalation memo to the state, with a number check |
 | `/api/find/ask` | `POST` | Public availability question, by voice or text |
 | `/api/find/speak` | `POST` | Public availability answer as MP3 audio (TTS) |
-| `/api/realtime/session` | `POST` | Short-lived Realtime client secret |
+| `/api/realtime/session` | `POST` | Short-lived Realtime client secret for one of three voice modes |
+| `/api/voice/extract` | `POST` | Shelf counts from a call transcript (Responses API, structured outputs) |
+| `/api/voice/gloss` | `POST` | English gloss of Hindi transcript lines |
+| `/api/voice/tts` | `POST` | Hindi voice note as MP3 audio (TTS) |
+| `/api/evals/run` | `POST` | Stream a live 10-case eval run against the Decisions API |
 | `/api/health` | `GET` | Live or demo mode, and model names |
 
 ## Run locally
@@ -232,10 +240,10 @@ npm run lint
 npm run build
 ```
 
-Run the Decisions API evals (needs a key):
+Run the Decisions API evals from the command line (needs a key). The results appear on the `/evals` page:
 
 ```powershell
-node --env-file=.env.local --experimental-transform-types --no-warnings --import ./scripts/evals/register.mjs scripts/evals/run.ts
+node scripts/evals/run.mjs
 ```
 
 ## Prototype scope
