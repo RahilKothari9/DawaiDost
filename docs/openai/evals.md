@@ -144,12 +144,37 @@ After this run, the product prompt changed (commit `a1699a5`):
 - The `transfer_surplus` choice description says the same thing.
 - The fallback rules use the same 75% threshold.
 
-The table above was measured **before** this change. The `product` row is the old prompt. A re-run with the new product prompt is the measured check. Until it is committed, we do not claim a new product number.
+The table above was measured **before** this change. The `product` row is the old prompt.
+
+### Re-measured: the shipped prompt (v2)
+
+After the fix, we ran the full set again with the new product prompt (run file [`data/evals/results-2026-10-10-v2.json`](../../data/evals/results-2026-10-10-v2.json)). The eval now imports `NEXT_ACTION_INSTRUCTIONS` and `DISTRICT_ACTION_CHOICES` from [`lib/ai/decide.ts`](../../lib/ai/decide.ts), so it measures the exact text the product sends. The old prompt stays in the run as a frozen `product_v1` variant.
+
+| System | Accuracy (50) | Unambiguous (40) | Strict | Macro F1 | ECE | Brier | Latency p50 / p95 | Tokens per call |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `gpt-6-luna`, product **v2** (shipped) | **94.0%** | **92.5%** | 84.0% | 0.88 | 0.112 | 0.113 | 169 / 1255 ms | 1666 |
+| `gpt-6-luna`, action only (v2) | 94.0% | 92.5% | 84.0% | 0.88 | 0.112 | 0.113 | 177 / 232 ms | 837 |
+| `gpt-6-luna`, minimal prompt | 62.0% | 52.5% | 56.0% | 0.51 | 0.107 | 0.595 | 190 / 434 ms | 550 |
+| `gpt-6-luna`, product v1 (historical) | 64.0% | 55.0% | 58.0% | 0.57 | 0.117 | 0.581 | 218 / 361 ms | 1528 |
+| Rules (`fallbackDecision`), current code | 100.0% | 100.0% | 94.0% | 0.96 | n/a | n/a | under 1 ms | 0 |
+
+| Version | Accuracy (50) | Transfer picks (wrong) | Misses |
+| --- | ---: | ---: | --- |
+| v1 | 64.0% | 35 (17) | 18 cases |
+| v2 | 94.0% | 18 (2) | V05, E04, U03 |
+
+- **The fix worked on the shipped prompt.** v2 fixed all ten cases where the donor surplus was too small or blocked by the donor's reserve, and five more.
+- **v1 reproduced exactly.** The frozen v1 prompt made the same choice as the first run on all 50 cases.
+- **Confidence is better aligned.** Mean confidence rose from 69.2% to 82.8%, against 94% accuracy. v2 has one high-confidence error (V05 at 0.82).
+- **The extra questions still do not change the action.** They feed the officer's signals (urgency, recount, donor) and cost about 2 times the input tokens.
+- **The p95 of 1255 ms comes from four slow calls.** The median is 169 ms.
+
+The `/evals` page shows both runs and a **Prompt history** section.
 
 ### Caveats
 
 - The ordered criteria mirror the labeling policy. A high score shows that the model follows stated criteria. It is not proof of independent judgment.
-- The rules baseline (98% in the run) encodes the same policy, so it is a consistency check, not a competitor.
+- The rules baseline (100% on the current code) encodes the same policy, so it is a consistency check, not a competitor. The model has not been right on any case where the rules were wrong.
 - The next step is a held-out case set that was not used to tune the prompt or the rules, with mixed-signal cases that no single rule covers. That is where model judgment can add value.
 
 ## Tests

@@ -212,7 +212,7 @@ The first live eval run on 50 labeled cases found a real failure mode before any
 
 A candidate prompt that stated the decision criteria as ordered checks scored 94% on the same model and snapshots. The product now sends ordered criteria, and the `transfer_surplus` description says when a transfer applies. The fallback rules use the same 75% coverage threshold.
 
-The ordered criteria follow the same written policy that the eval labels follow. So the 94% shows that the model follows stated criteria well. It is not proof of independent judgment. A re-run of the eval with the new product prompt is the measured check; see [Decision evals](evals.md).
+The ordered criteria follow the same written policy that the eval labels follow. So the 94% shows that the model follows stated criteria well. It is not proof of independent judgment. We re-ran the eval with the shipped prompt: it scored 94% (47 of 50), and transfer picks fell from 35 (17 wrong) to 18 (2 wrong). See [Decision evals](evals.md).
 
 ## The original single-question route
 

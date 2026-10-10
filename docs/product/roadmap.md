@@ -28,7 +28,7 @@ These items were on the original roadmap. They now exist in code, on synthetic d
 
 ## Stage 2: Measured quality
 
-- Move the product instructions toward the explicit decision criteria, which raised accuracy from 64% to 94% in the first live run.
+- Done: the product prompt now states the decision criteria in order. Re-measured on the shipped prompt, accuracy rose from 64% to 94%.
 - Add a held-out case set that was not used to tune the prompt or the rules, including mixed-signal cases that no single rule covers.
 - Run the other models when they are enabled on `/v1/decisions` for the project.
 - Add labeled cases from officer decisions in a pilot, with consent.

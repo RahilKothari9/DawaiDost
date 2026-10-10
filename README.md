@@ -137,7 +137,7 @@ We chose the Decisions API instead of a free-text chat model for three reasons:
 2. **Confidence signal.** Per-choice probabilities give the officer a confidence value they can act on. A 0.82 transfer recommendation and a 0.40 recommendation lead to different conversations.
 3. **Validation.** The server accepts a response only if it names one of the four actions and an offered donor. Any other response triggers a labeled fallback.
 
-**Evals drove a measured prompt fix.** We ran 50 labeled synthetic cases against the live Decisions API (`gpt-6-luna`, 200 calls). The eval caught a real failure mode before any officer saw it: the first product prompt over-recommended transfers when donor surplus was too small to close the gap, and scored 64%. A prompt that states the decision criteria as ordered checks scored 94% on the same model, with a median latency of about 150 ms. The product now sends those ordered checks. The criteria mirror the labeling policy, and the rule-based fallback (98% in the run) encodes the same policy, so these numbers show policy-following, not independent judgment. The results file is committed, and the `/evals` page shows every case.
+**Evals drove a measured prompt fix.** We ran 50 labeled synthetic cases against the live Decisions API (`gpt-6-luna`, 200 calls). The eval caught a real failure mode before any officer saw it: the first product prompt over-recommended transfers when donor surplus was too small to close the gap, and scored 64%. A prompt that states the decision criteria as ordered checks scored 94% on the same model, with a median latency of about 150 ms. The product now sends those ordered checks, and a re-run on the shipped prompt measured 94% (47 of 50), with wrong transfer picks down from 17 to 2. The criteria mirror the labeling policy, and the rule-based fallback (100% on the current code) encodes the same policy, so these numbers show policy-following, not independent judgment. The results file is committed, and the `/evals` page shows every case.
 
 Details: [Decisions API](docs/openai/decisions-api.md). Quality: [Decision evals](docs/openai/evals.md).
 
@@ -272,7 +272,7 @@ This is a hackathon prototype. **All facility data is synthetic.** The block nam
 2. **More languages.** Support more Indian languages for other states.
 3. **District data.** Read dispatch data from the state drug distribution system to improve consumption and lead-time values.
 4. **Durable audit trail.** Store reports, decisions, approvals, and escalations in a database with user roles.
-5. **Better decisions, measured.** Move the product prompt toward the explicit criteria that scored 94% in the first live eval run, and test on held-out cases that were not used for tuning.
+5. **Better decisions, measured.** Build a held-out case set that was not used for tuning, with mixed-signal cases that no single rule covers, and track the agreement between recommendations and officers' final actions.
 6. **Pilot.** Run a pilot at a group of PHCs in one district. Measure report completion, days of warning before a stockout, time to approved action, transfers completed, and stockout-days per medicine against a baseline period.
 
 ## Documentation
