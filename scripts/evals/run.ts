@@ -11,7 +11,8 @@ import { BASELINE_SOURCE, makeConfig, runBaseline, runCase, runPool } from "../.
 import { gradeBaseline, gradeConfig } from "../../lib/evals/report";
 import type { CaseResult, PromptVariantId, ResultsFile, RunConfig } from "../../lib/evals/types";
 
-const DEFAULT_CONFIGS = "gpt-6-luna:product,gpt-6-luna:action_only,gpt-6-luna:minimal,gpt-5.4-mini:product,gpt-6-sol:product";
+// Only gpt-6-luna is enabled on /v1/decisions for the project key (others: 404 model_not_found, probed 2026-10-10).
+const DEFAULT_CONFIGS = "gpt-6-luna:product,gpt-6-luna:action_only,gpt-6-luna:minimal,gpt-6-luna:policy";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -28,7 +29,7 @@ async function main() {
   const cases = only ? EVAL_CASES.filter((c) => only.includes(c.id)) : EVAL_CASES;
   const configs: RunConfig[] = (arg("configs") ?? DEFAULT_CONFIGS).split(",").map((s) => {
     const [model, variant] = s.trim().split(":");
-    if (!["product", "action_only", "minimal"].includes(variant)) throw new Error(`Unknown variant in ${s}`);
+    if (!["product", "action_only", "minimal", "policy"].includes(variant)) throw new Error(`Unknown variant in ${s}`);
     return makeConfig(model, variant as PromptVariantId, cases[0]);
   });
   const startedAt = new Date().toISOString();
@@ -69,7 +70,7 @@ async function main() {
     configs,
     results,
     baseline: { name: "Deterministic fallback rules", source: BASELINE_SOURCE, results: baseline },
-    notes: [`Run with node ${process.version} via scripts/evals/run.ts.`],
+    notes: [`Run with node ${process.version} via scripts/evals/run.ts.`, ...(arg("note") ? [arg("note")!] : [])],
   };
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(file, null, 1) + "\n");

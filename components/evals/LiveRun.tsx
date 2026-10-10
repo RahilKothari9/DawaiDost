@@ -10,11 +10,12 @@ import s from "./evals.module.css";
 
 type Row = { caseId: string; title: string; expected: DecisionAction; acceptable: DecisionAction[]; baseline?: DecisionAction; result?: CaseResult };
 
-const MODELS = ["gpt-6-luna", "gpt-6-sol", "gpt-5.4-mini"];
+const MODELS = ["gpt-6-luna"];
 const VARIANTS: { value: PromptVariantId; label: string }[] = [
   { value: "product", label: "Product call" },
   { value: "action_only", label: "Action only" },
   { value: "minimal", label: "Minimal prompt" },
+  { value: "policy", label: "Explicit criteria" },
 ];
 
 const ok = (r: Row, a: DecisionAction | null | undefined) => !!a && (a === r.expected || r.acceptable.includes(a));

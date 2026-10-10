@@ -15,7 +15,7 @@ import { ReliabilityDiagram } from "./ReliabilityDiagram";
 import { ACTION_SHORT, int, ms, num, pct } from "./format";
 import s from "./evals.module.css";
 
-const VARIANT_LABEL: Record<string, string> = { product: "Product call", action_only: "Action only", minimal: "Minimal prompt", fallback: "lib/ai/decide.ts" };
+const VARIANT_LABEL: Record<string, string> = { product: "Product call", action_only: "Action only", minimal: "Minimal prompt", policy: "Explicit criteria", fallback: "lib/ai/decide.ts" };
 
 type Props = { data: ResultsFile; file: string | null; recorded: boolean; liveSubset: { id: string; title: string; expected: DecisionAction; acceptable: DecisionAction[] }[]; rerun: string };
 
@@ -43,7 +43,7 @@ export function EvalReport({ data, file, recorded, liveSubset, rerun }: Props) {
   const bm = base.metrics;
   const delta = selected ? m.accuracy - bm.accuracy : null;
   const correctN = Math.round(m.accuracy * m.n);
-  const runDate = new Date(data.startedAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const runDate = new Date(data.startedAt).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
   const cats = [...new Set(data.cases.map((c) => c.category))] as EvalCategory[];
 
   return (

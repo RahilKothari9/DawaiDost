@@ -12,6 +12,8 @@ export const DECISIONS_URL = "https://api.openai.com/v1/decisions";
 
 /** Models the live-run endpoint accepts (all verified to exist on the Decisions API). */
 export const EVAL_MODELS = ["gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-5.5", "gpt-5.4-mini"] as const;
+/** Probed 2026-10-10 with the project key: only gpt-6-luna is enabled on /v1/decisions; the others return 404 model_not_found. */
+export const DECISIONS_ENABLED_MODELS = ["gpt-6-luna"] as const;
 
 /** Instructions for the "minimal" variant: no signals named, no policy, bare choice labels. */
 export const MINIMAL_INSTRUCTIONS = "Choose the next action for the target facility.";
@@ -22,14 +24,23 @@ const MINIMAL_CHOICES = [
   { value: "escalate_supply_gap", description: "Escalate the supply gap." },
 ];
 
+/**
+ * Candidate instructions that state the decision criteria explicitly. Caveat: these mirror EVAL_POLICY, the same
+ * policy the labels follow, so a gain here shows the model can follow stated criteria, not independent judgment.
+ */
+export const POLICY_INSTRUCTIONS =
+  "Choose the single safest next operational step for the target facility. Apply these checks in order and stop at the first that holds. 1) If the target's count is unverified, has a reportFlag, is under recount, or its dailyUse is far from weeklyDispensedTrend divided by 7, choose verify_count. 2) If one verified donor's transferable units (already net of its own reserve) cover the target's gapUnits (coversGapPct 100), choose transfer_surplus. A donor that covers only part of the gap does not qualify, and unverified donors never count. 3) If no verified donor covers the gap and upstream status is delayed or unavailable, or districtStore.daysOfDistrictDemand is below the medicine's leadTimeDays, choose escalate_supply_gap. 4) Otherwise choose draft_indent. The officer must approve all actions.";
+
 export const PROMPT_VARIANTS: Record<PromptVariantId, { label: string; description: string }> = {
   product: { label: "Product call", description: "Exactly what /api/decisions/district sends: next_action plus urgency, recount, indent-timing and donor questions in one call." },
   action_only: { label: "Action only", description: "Product instructions and choice descriptions, but next_action is the only question." },
   minimal: { label: "Minimal prompt", description: "One-line instruction and bare choice labels. Same snapshot." },
+  policy: { label: "Explicit criteria", description: "Candidate: product choices with the decision criteria spelled out in order. Mirrors the labeling policy." },
 };
 
 export function buildEvalQuestions(c: EvalCase, variant: PromptVariantId): DecisionCreateParams["questions"] {
   if (variant === "product") return buildQuestions(extractDonors(c.snapshot));
+  if (variant === "policy") return [{ type: "choice", name: "next_action", instructions: POLICY_INSTRUCTIONS, choices: actionChoices }];
   if (variant === "action_only") return [{ type: "choice", name: "next_action", instructions: NEXT_ACTION_INSTRUCTIONS, choices: actionChoices }];
   return [{ type: "choice", name: "next_action", instructions: MINIMAL_INSTRUCTIONS, choices: MINIMAL_CHOICES }];
 }

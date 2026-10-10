@@ -2,7 +2,7 @@
 import type { DecisionAction } from "../district/types";
 import type { EvalCategory } from "./cases";
 
-export type PromptVariantId = "product" | "action_only" | "minimal";
+export type PromptVariantId = "product" | "action_only" | "minimal" | "policy";
 
 export type RunConfig = {
   id: string; // `${model}:${variant}`

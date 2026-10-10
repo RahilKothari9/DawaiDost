@@ -11,7 +11,7 @@ How we check that the OpenAI Decisions API picks the right district action. The 
   - `product` sends the exact multi-question call that `/api/decisions/district` makes (`buildQuestions` in `lib/ai/decide.ts`).
   - `action_only` uses the product instructions and choices, but asks only `next_action`.
   - `minimal` sends a one-line instruction and bare choice labels with the same snapshot.
-- **Models.** The default run uses `gpt-6-luna` with all three variants, plus `gpt-5.4-mini` and `gpt-6-sol` with the product variant.
+- **Models.** `gpt-6-luna` with four prompt variants: the three above plus `policy` (explicit criteria). Other models can be passed with `--configs model:variant`, but with the project key only `gpt-6-luna` is enabled on `/v1/decisions`.
 - **Baseline.** The product's deterministic fallback (`fallbackDecision` in `lib/ai/decide.ts`) runs on the same snapshots.
 - **Execution.** Up to 4 calls run at once. A call gets up to 4 attempts with backoff on 429 and 5xx errors. An exhausted quota is not retried. A call that still fails counts as wrong.
 
@@ -41,8 +41,24 @@ The launcher loads `.env.local` and runs `scripts/evals/run.ts` with Node's buil
 
 The **Run live** button on `/evals` streams a fresh run of 10 cases through `POST /api/evals/run` as NDJSON. Results from this button are not saved.
 
-## Status
+## Results (`results-2026-10-10.json`, measured)
 
-The deterministic baseline was measured from code: it got 45 of 50 cases acceptable (90%) and 35 of 40 unambiguous cases (87.5%). It missed V05 (recorded daily use contradicts the weekly trend) and four cases where only an unverified donor has surplus (Z01, U01, U02, U03). The rules move stock from these unverified donors.
+Only `gpt-6-luna` is enabled on `/v1/decisions` for the project key. `gpt-6-sol`, `gpt-6.1-sol`, `gpt-5.5` and `gpt-5.4-mini` all return `404 model_not_found`, so this run compares prompt variants on one model, not models. The deterministic rules are the baseline.
 
-A Decisions API run has not been committed yet. Every attempt on 2026-10-10 returned `HTTP 429 credit_balance_exhausted` for the project key. No model numbers have been estimated or filled in. Run the command above after the key has credit.
+| System | Accuracy (50) | Unambiguous (40) | Strict | Macro F1 | ECE | Brier | p50 / p95 | Tokens / call |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| gpt-6-luna, product call | 64.0% (32) | 55.0% (22) | 58.0% | 0.57 | 0.117 | 0.581 | 151 / 266 ms | 1528 |
+| gpt-6-luna, action only | 64.0% (32) | 55.0% (22) | 58.0% | 0.57 | 0.124 | 0.580 | 149 / 269 ms | 699 |
+| gpt-6-luna, minimal prompt | 62.0% (31) | 52.5% (21) | 56.0% | 0.51 | 0.107 | 0.595 | 148 / 222 ms | 550 |
+| gpt-6-luna, explicit criteria | 94.0% (47) | 92.5% (37) | 82.0% | 0.87 | 0.257 | 0.158 | 148 / 219 ms | 748 |
+| Rules (`fallbackDecision`) | 98.0% (49) | 97.5% (39) | 94.0% | 0.95 | n/a (fixed templates) | n/a | <1 ms | 0 |
+
+### What the run shows
+
+- **The product prompt over-recommends transfers.** It chose `transfer_surplus` on 35 of 50 cases. That includes all 10 cases where donor surplus is real but too small to bridge the gap, or where the donor's reserve leaves too little to move. The high-confidence wrong transfers are R01 (0.84), S02, S04 and S05, all at 0.75 or more.
+- **The product instructions barely beat the minimal prompt.** They score 64% against 62%. Spelling the decision criteria out in order (the explicit criteria variant) raises accuracy to 94%. This variant mirrors the labeling policy, so it shows the model follows stated criteria well. It is not evidence of independent judgment.
+- **The extra product questions don't change the action.** Adding the urgency, recount and donor questions changed no `next_action` choice compared with action only, but used 2.2 times the input tokens.
+- **The explicit criteria variant is underconfident.** Its mean confidence is 68% against 94% accuracy, which gives ECE 0.257.
+- **The rules baseline beats every prompt on this set.** This is expected, because the rules and the labels encode the same policy. The explicit criteria variant still misses E04 (warehouse short while supply status is "available"), U03 (an unverified donor with full cover next to a weak verified one) and V05. The rules miss only V05.
+- **No case was right for the model and wrong for the rules.**
+- **The rules baseline changed mid-session.** It scored 90% earlier on 2026-10-10. The AI agent then changed `fallbackDecision` to stop counting unverified donors, and the numbers above use the current code.
