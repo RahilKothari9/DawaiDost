@@ -21,13 +21,15 @@ export type FacilityDetailProps = {
   /** Max timeline events (default 6). */
   timelineLimit?: number;
   forecastHeight?: number;
+  /** Hide the eyebrow + facility name when the container (e.g. a drawer) already shows them. */
+  showTitle?: boolean;
   className?: string;
 };
 
 const TYPE_LABEL = { WAREHOUSE: "District warehouse", DH: "District hospital", CHC: "Community health centre", PHC: "Primary health centre" } as const;
 const LANG = { hi: "Hindi", en: "English" } as const;
 
-export function FacilityDetail({ facilityId, medicineId, onMedicineSelect, timelineLimit = 6, forecastHeight = 240, className }: FacilityDetailProps) {
+export function FacilityDetail({ facilityId, medicineId, onMedicineSelect, timelineLimit = 6, forecastHeight = 240, showTitle = true, className }: FacilityDetailProps) {
   const { state, dispatch, assessments } = useDistrict();
 
   const data = useMemo(() => {
@@ -100,11 +102,11 @@ export function FacilityDetail({ facilityId, medicineId, onMedicineSelect, timel
     <div className={[s.root, className].filter(Boolean).join(" ")}>
       <div className={s.layout}>
         <header className={s.head}>
-          <p className={s.eyebrow}>
+          {showTitle && <p className={s.eyebrow}>
             <span className={s.badge}>{f.type === "WAREHOUSE" ? "WH" : f.type}</span>
             {TYPE_LABEL[f.type]} · {f.block} block · {fmtInt(f.catchmentPopulation)} catchment
-          </p>
-          <h2 className={s.name}>{f.name}</h2>
+          </p>}
+          {showTitle && <h2 className={s.name}>{f.name}</h2>}
           <div className={s.people}>
             <div className={s.person}>
               <span className={s.avatar} aria-hidden>{initials(f.pharmacist.name)}</span>

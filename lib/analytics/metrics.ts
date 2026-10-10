@@ -11,7 +11,7 @@ import type {
   StockAssessment,
   StockRecord,
   Transfer,
-} from "@/lib/district/types";
+} from "../district/types";
 import {
   assessStock,
   districtKpis,
@@ -19,7 +19,7 @@ import {
   thresholdDays as engineThreshold,
   transferArrivalAt,
   weekStart,
-} from "@/lib/district/engine";
+} from "../district/engine";
 
 /** Worst → best. */
 export const RISK_LEVELS: RiskLevel[] = ["stockout", "critical", "low", "ok", "surplus"];

@@ -19,8 +19,10 @@ export type ForecastChartProps = {
   medicineId: string;
   /** Total SVG height including axes (default 260). */
   height?: number;
-  /** Title, key facts and legend above the plot (default true). */
+  /** Title and key facts above the plot (default true). */
   showHeader?: boolean;
+  /** Legend row under the plot (default true). */
+  showLegend?: boolean;
   className?: string;
 };
 
@@ -28,7 +30,7 @@ type Snap = { t: number; kind: "history" | "projection"; stock: number; dispense
 
 const M = { top: 24, right: 16, bottom: 24, left: 40 };
 
-export function ForecastChart({ facilityId, medicineId, height = 260, showHeader = true, className }: ForecastChartProps) {
+export function ForecastChart({ facilityId, medicineId, height = 260, showHeader = true, showLegend = true, className }: ForecastChartProps) {
   const { state, getAssessment } = useDistrict();
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const [hi, setHi] = useState<number | null>(null);
@@ -310,7 +312,7 @@ export function ForecastChart({ facilityId, medicineId, height = 260, showHeader
         )}
       </div>
 
-      {showHeader && (
+      {showLegend && (
         <ul className={s.legend} aria-hidden>
           <li><svg width={10} height={12}><rect x={1} y={2} width={8} height={10} rx={2} fill="var(--line-strong)" /></svg>Weekly closing stock</li>
           <li><svg width={18} height={4}><line x1={0} x2={18} y1={2} y2={2} stroke="var(--ink)" strokeWidth={2} strokeDasharray="5 3" /></svg>Projection at current use</li>
