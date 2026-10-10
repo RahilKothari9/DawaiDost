@@ -4,10 +4,6 @@
   display: flex; flex-direction: column; gap: 14px; padding: 20px 22px;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
 }
-.panel::before {
-  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
-  background: linear-gradient(90deg, var(--accent), color-mix(in oklab, var(--accent) 30%, var(--risk-low)));
-}
 .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .kicker { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .tools { display: flex; align-items: center; gap: 6px; }

@@ -152,6 +152,13 @@ export function DecisionQueue({ variant = "full", limit = 5, onSelect }: Decisio
   }
 
   const shown = compact ? rows.slice(0, limit) : rows;
+  const runCount = Math.min(needsDecision.length || atRisk.length, 80);
+  const scope = needsDecision.length === atRisk.length ? "all" : "open";
+  const runLabel = running
+    ? `Stop · ${batch?.done ?? 0}/${batch?.total ?? 0}`
+    : needsDecision.length
+      ? compact ? `Run on ${scope} (${runCount})` : `Run Decisions API on ${scope} (${runCount})`
+      : `Re-run all (${runCount})`;
   const progress = batch ? batch.done / Math.max(1, batch.total) : 0;
   const batchAvg = batch?.latencies.length ? Math.round(batch.latencies.reduce((t, x) => t + x, 0) / batch.latencies.length) : null;
 
@@ -159,15 +166,22 @@ export function DecisionQueue({ variant = "full", limit = 5, onSelect }: Decisio
     <section className={`${s.queue} ${compact ? s.compact : ""}`} aria-label="Decision queue">
       <header className={s.head}>
         <div className={s.headText}>
-          <span className={s.kicker}><Sparkles size={12} aria-hidden /> OpenAI decision layer</span>
+          {!compact ? <span className={s.kicker}><Sparkles size={12} aria-hidden /> OpenAI decision layer</span> : null}
           <p className={s.counts}>
             <b className={a.num}>{atRisk.length}</b> at risk · <b className={a.num}>{pending}</b> awaiting you
             {!compact && live.length ? <> · <span className={a.num}>{live.length}</span> live{avgLatency !== null ? <>, avg <span className={a.num}>{fmtMs(avgLatency)}</span></> : null}</> : null}
           </p>
         </div>
-        <Button variant="decision" size={compact ? "sm" : "md"} icon={running ? <Spinner /> : runTargets === atRisk && !needsDecision.length ? <RotateCcw size={14} /> : <Play size={14} />} onClick={runAll} disabled={!atRisk.length} aria-live="polite">
-          {running ? `Stop · ${batch?.done ?? 0}/${batch?.total ?? 0}` : needsDecision.length ? `Run Decisions API on ${needsDecision.length === atRisk.length ? "all" : "open"} (${Math.min(needsDecision.length, 80)})` : `Re-run all (${Math.min(atRisk.length, 80)})`}
-        </Button>
+        {compact ? (
+          <button type="button" className={s.runText} onClick={runAll} disabled={!atRisk.length} aria-live="polite">
+            {running ? <Spinner size={12} /> : null}
+            {runLabel}
+          </button>
+        ) : (
+          <Button variant="decision" icon={running ? <Spinner /> : !needsDecision.length ? <RotateCcw size={14} /> : <Play size={14} />} onClick={runAll} disabled={!atRisk.length} aria-live="polite">
+            {runLabel}
+          </Button>
+        )}
       </header>
 
       <AnimatePresence initial={false}>
@@ -250,7 +264,7 @@ export function DecisionQueue({ variant = "full", limit = 5, onSelect }: Decisio
                     <span className={s.err}>failed · <button type="button" onClick={() => runOne(x.facilityId, x.medicineId)}>retry</button></span>
                   ) : (
                     <button type="button" className={s.decideOne} onClick={() => runOne(x.facilityId, x.medicineId)}>
-                      <Sparkles size={12} aria-hidden /> Decide
+                      Decide
                     </button>
                   )}
                 </div>

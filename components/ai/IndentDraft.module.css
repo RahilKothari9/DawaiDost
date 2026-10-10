@@ -12,7 +12,7 @@
 .provenance { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .doc {
-  background: #fffdf8; color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 18px 20px; box-shadow: var(--shadow); font: 400 13px/1.45 var(--font-sans); position: relative;
 }
 .doc[data-phase="submitted"]::after {
