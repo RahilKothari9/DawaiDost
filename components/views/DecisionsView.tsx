@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { useDistrict } from "@/lib/district/store";
 import { DecisionQueue } from "@/components/ai/DecisionQueue";
 import { DecisionCard } from "@/components/ai/DecisionCard";
@@ -15,6 +16,17 @@ export function DecisionsView() {
   const pending = state.decisions.filter((d) => d.status === "pending").length;
   const f = state.facilities.find((x) => x.id === state.selectedFacilityId);
   const m = state.medicines.find((x) => x.id === state.selectedMedicineId);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const firstSel = useRef(true);
+  const selKey = `${state.selectedFacilityId}|${state.selectedMedicineId}`;
+  // Single-column layouts put the card below a long queue: bring it into view when a new item is picked.
+  useEffect(() => {
+    if (firstSel.current) {
+      firstSel.current = false;
+      return;
+    }
+    if (window.matchMedia("(max-width: 1100px)").matches) cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selKey]);
 
   return (
     <div className="view">
@@ -52,7 +64,7 @@ export function DecisionsView() {
         <Panel title="Queue" kicker={`${pending} waiting · ${total} total`} flush>
           <DecisionQueue variant="full" />
         </Panel>
-        <div className="sticky-col">
+        <div className="sticky-col" ref={cardRef} style={{ scrollMarginTop: "calc(var(--topbar-h) + 12px)" }}>
           {f && m ? (
             <DecisionCard key={`${f.id}-${m.id}`} facilityId={f.id} medicineId={m.id} />
           ) : (
