@@ -1,6 +1,7 @@
 "use client";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useDistrict } from "@/lib/district/store";
@@ -61,9 +62,12 @@ export function TimelineToaster() {
 export function ToastViewport() {
   const { toasts, dismissToast } = useShell();
   const reduce = useReducedMotion();
+  // Map views keep their playback controls bottom-right; toasts move left there.
+  const pathname = usePathname() ?? "/";
+  const left = pathname === "/map";
 
   return (
-    <div className="toasts" role="region" aria-label="Notifications" aria-live="polite">
+    <div className={`toasts ${left ? "toasts--left" : ""}`} role="region" aria-label="Notifications" aria-live="polite">
       <AnimatePresence initial={false}>
         {toasts.map((t) => (
           <motion.div

@@ -23,7 +23,7 @@ export function MapView() {
       <div className="mapview__frame">
         <DistrictMap
           variant="full"
-          height="calc(100dvh - var(--topbar-h) - 210px)"
+          height="var(--map-frame-h)"
           onSelectFacility={(id) => {
             dispatch({ type: "SELECT_FACILITY", facilityId: id });
             setOpen(true);

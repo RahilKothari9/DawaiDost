@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Truck, X } from "lucide-react";
+import { Check, MapPin, Truck, X } from "lucide-react";
+import { useState } from "react";
+import { DistrictMap } from "@/components/map/DistrictMap";
 import { useDistrict } from "@/lib/district/store";
 import type { Transfer, TransferStatus } from "@/lib/district/types";
 import { Badge, Button } from "@/components/ui";
@@ -19,6 +21,7 @@ const COLUMNS: { status: TransferStatus; hint: string }[] = [
 
 export function TransfersView() {
   const { state } = useDistrict();
+  const [focus, setFocus] = useState<string | null>(null);
   const by = (s: TransferStatus) => state.transfers.filter((t) => t.status === s).sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt));
   const moving = by("in_transit");
   const units = moving.reduce((n, t) => n + t.quantity, 0);
@@ -31,6 +34,10 @@ export function TransfersView() {
         title="Transfers"
         lede={`${moving.length} ${moving.length === 1 ? "transfer is" : "transfers are"} on the road carrying ${units} units. A donor clinic never drops below its own reserve; that rule is in code, not in the model.`}
       />
+      <div className="mapview__frame transfers-map">
+        <DistrictMap variant="compact" height={340} selectedTransferId={focus} onSelectTransfer={setFocus} defaultLayers={{ transfers: true }} />
+      </div>
+
       <div className="kanban">
         {COLUMNS.map((c) => {
           const items = by(c.status);
@@ -43,7 +50,7 @@ export function TransfersView() {
               <AnimatePresence initial={false}>
                 {items.map((t) => (
                   <motion.div key={t.id} layout layoutId={`tcard-${t.id}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-                    <TransferCard t={t} />
+                    <TransferCard t={t} focused={focus === t.id} onFocus={() => setFocus((f) => (f === t.id ? null : t.id))} />
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -69,7 +76,7 @@ function RejectedRow({ t }: { t: Transfer }) {
   return <li>{t.quantity} × {L.medicineName(t.medicineId)} · {L.facilityName(t.fromId)} → {L.facilityName(t.toId)} · {fmtDateTime(t.updatedAt)}</li>;
 }
 
-function TransferCard({ t }: { t: Transfer }) {
+function TransferCard({ t, focused, onFocus }: { t: Transfer; focused: boolean; onFocus: () => void }) {
   const { state, dispatch } = useDistrict();
   const L = useLookups();
   const med = L.medicine(t.medicineId);
@@ -81,7 +88,7 @@ function TransferCard({ t }: { t: Transfer }) {
   const etaLeft = Math.max(0, t.etaHours - elapsedH);
 
   return (
-    <article className={`tcard tcard--${t.status}`}>
+    <article className={`tcard tcard--${t.status} ${focused ? "is-focused" : ""}`}>
       <div className="tcard__med">
         <strong>{med ? `${med.name} ${med.strength}` : t.medicineId}</strong>
         <span className="tcard__qty">{t.quantity}<small>{med?.unit.split(" ")[0] ?? "units"}s</small></span>
@@ -108,6 +115,7 @@ function TransferCard({ t }: { t: Transfer }) {
           <Badge>Manual</Badge>
         )}
         <div className="tcard__actions">
+          <Button size="sm" variant="ghost" aria-pressed={focused} aria-label={focused ? "Clear map highlight" : "Show on map"} title={focused ? "Clear map highlight" : "Show on map"} icon={<MapPin size={14} />} onClick={onFocus} />
           {t.status === "proposed" ? (
             <>
               <Button size="sm" variant="ghost" aria-label="Reject transfer" icon={<X size={14} />} onClick={() => set("rejected")} />
