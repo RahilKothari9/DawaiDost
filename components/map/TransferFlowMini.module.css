@@ -1,0 +1,59 @@
+.root {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  --route: var(--ink-2);
+}
+.s_approved,
+.s_in_transit { --route: var(--accent); }
+.s_delivered { --route: var(--risk-ok); }
+.s_opportunity { --route: var(--risk-surplus); }
+.s_rejected { --route: var(--muted); }
+
+.svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+.base { fill: none; stroke: var(--line); stroke-width: 5; stroke-linecap: round; }
+.route { fill: none; stroke: var(--route); stroke-width: 2.4; stroke-linecap: round; }
+.s_proposed .route { stroke-dasharray: 5 4; }
+.s_opportunity .route { stroke-dasharray: 1 5; stroke-width: 2; }
+.s_rejected .route { stroke-dasharray: 2 4; opacity: 0.6; }
+.s_delivered .route { opacity: 0.55; }
+.s_in_transit .route {
+  stroke-dasharray: 3 3;
+  opacity: 0.55;
+  animation: march 1.2s linear infinite;
+}
+.travelled { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.arrow { fill: none; stroke: var(--route); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.qty { font: 600 13px/1 var(--font-mono); fill: var(--ink); }
+.unit { font-weight: 400; fill: var(--muted); font-size: 10.5px; }
+.name { font: 600 11.5px/1 var(--font-sans); fill: var(--ink); }
+.meta { font: 400 10.5px/1 var(--font-mono); fill: var(--muted); }
+
+.node { stroke: #fff; stroke-width: 2.5; filter: drop-shadow(0 1px 1.5px rgb(20 19 15 / 25%)); }
+.halo { fill: none; stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: halo 1.8s var(--ease) infinite; }
+.cons { fill: #fff; stroke: var(--accent); stroke-width: 2.5; }
+.consGlow { fill: var(--accent); opacity: 0.2; animation: glow 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.check { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.caption {
+  display: flex;
+  gap: 10px;
+  font: 500 11px/1.2 var(--font-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.caption span:first-child { color: var(--route); font-weight: 600; }
+
+@keyframes march { to { stroke-dashoffset: -12; } }
+@keyframes halo { from { transform: scale(1); opacity: 0.8; } to { transform: scale(2.4); opacity: 0; } }
+@keyframes glow { 50% { transform: scale(1.5); opacity: 0.08; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .s_in_transit .route, .halo, .consGlow { animation: none; }
+}
