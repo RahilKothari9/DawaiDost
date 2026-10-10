@@ -29,7 +29,8 @@ Dawai Dost is built on the OpenAI platform. These documents explain how each API
 | Document | Content |
 | --- | --- |
 | [System overview](architecture/overview.md) | Components, data flow, and the main design principle |
-| [Stock calculations](architecture/stock-math.md) | Days of stock, safe surplus, and the planning threshold, with a worked example |
+| [District model and state](architecture/district-model.md) | The synthetic Sehore network, built-in cases, state store, actions, and simulation clock |
+| [Stock calculations](architecture/stock-math.md) | Days of stock, risk levels, count check, donor ranking, transfer planner, and indent quantity, with a worked example |
 | [Reliability and safety](architecture/reliability-and-safety.md) | Fallbacks, guardrails, key handling, and human approval |
 | [Testing](architecture/testing.md) | What the test suite checks and how to run it |
 
