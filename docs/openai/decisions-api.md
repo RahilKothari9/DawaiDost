@@ -89,7 +89,7 @@ The route accepts a snapshot of up to 40,000 characters. Facility and medicine i
   "model": "gpt-6-luna",
   "input": "<facts-only snapshot as JSON>",
   "questions": [
-    { "type": "choice", "name": "next_action", "instructions": "Choose the single safest next operational step for the target facility. ...", "choices": [ "...four actions..." ] },
+    { "type": "choice", "name": "next_action", "instructions": "Choose the single safest next operational step for the target facility. Apply these checks in order ...", "choices": [ "...four actions..." ] },
     { "type": "score", "name": "urgency", "instructions": "How soon must the officer act ...", "levels": [ "...monitor, this_week, today..." ] },
     { "type": "predicate", "name": "recount_needed", "instructions": "Is the target's latest stock count doubtful enough ..." },
     { "type": "predicate", "name": "indent_arrives_in_time", "instructions": "Would a routine district indent placed today arrive before the target runs out? ..." },
@@ -99,9 +99,16 @@ The route accepts a snapshot of up to 40,000 characters. Facility and medicine i
 }
 ```
 
-The full `next_action` instructions:
+The full `next_action` instructions. They state the decision criteria as ordered checks. We rewrote them this way after the first live eval run (see [Evals drove a prompt fix](#evals-drove-a-prompt-fix)).
 
-> Choose the single safest next operational step for the target facility. Consider report verification (verified flag, reportFlag, report age), days of stock against the resupply lead time plus safety buffer, inbound transfers, donor surplus after its reserve, and whether the action can bridge the gap. Prefer a local transfer when a verified donor has sufficient surplus and preserve every donor's reserve. Do not treat a transfer as a cure for upstream shortages: when upstream supply is delayed or unavailable and local surplus cannot cover the gap, escalate. The officer must approve all actions. If the snapshot contains a counterfactual field, judge that hypothetical scenario as stated.
+> Choose the single safest next operational step for the target facility. Apply these checks in order and stop at the first that holds.
+> 1) Verify first: if the target's count is unverified, has a reportFlag, is already under recount, or its dailyUse is far from weeklyDispensedTrend divided by 7, choose verify_count.
+> 2) Transfer: if one verified donor's transferable units (already net of its own reserve and open transfers) cover the target's gapUnits (coversGapPct 100), or nearly all of it (coversGapPct 75 or more), choose transfer_surplus. A donor that covers only a small part of the gap does not qualify, and unverified donors never count.
+> 3) Escalate: if no verified donor qualifies and upstream status is delayed or unavailable, or districtStore.daysOfDistrictDemand is below the medicine's leadTimeDays, choose escalate_supply_gap. Do not treat a transfer as a cure for upstream shortages.
+> 4) Otherwise choose draft_indent: resupply arrives in time and local surplus cannot cover the gap.
+> If the snapshot contains a counterfactual field, judge that hypothetical scenario as stated. The officer must approve all actions.
+
+The `transfer_surplus` choice description in this call also states its condition: "Move surplus from a verified nearby donor, preserving its safety reserve. Applies only when that donor's safe surplus covers the target's gap (or nearly all of it)."
 
 See [Prompt and choice design](prompt-design.md) for the reason behind each phrase.
 
@@ -193,11 +200,19 @@ The request has a 20-second timeout.
 If the key is missing or any check fails, the server returns a deterministic decision with `source: "demo_fallback"` and a reason (`missing_api_key`, `upstream_unavailable`, `unexpected_response`, or `request_failed`). The fallback follows the same rules as the engine:
 
 1. Count not verified or flagged → `verify_count`
-2. A donor can cover most of the gap → `transfer_surplus`
+2. The best donor covers at least 75% of the gap, or all donors together cover it → `transfer_surplus`
 3. Upstream supply delayed, or the district warehouse holds less than the lead time → `escalate_supply_gap`
 4. Otherwise → `draft_indent`
 
 The fallback record includes a `ruleTrace` that lists which rules fired, and `engine: "rules"`. Its probabilities are fixed templates, and the dashboard labels them as demo data. See [Reliability and safety](../architecture/reliability-and-safety.md).
+
+## Evals drove a prompt fix
+
+The first live eval run on 50 labeled cases found a real failure mode before any officer saw it. The original product prompt said "prefer a local transfer when a verified donor has sufficient surplus". `gpt-6-luna` read that too broadly. It chose `transfer_surplus` on 35 of 50 cases, including cases where the donor's safe surplus was real but too small to close the gap. The product prompt scored 64%.
+
+A candidate prompt that stated the decision criteria as ordered checks scored 94% on the same model and snapshots. The product now sends ordered criteria, and the `transfer_surplus` description says when a transfer applies. The fallback rules use the same 75% coverage threshold.
+
+The ordered criteria follow the same written policy that the eval labels follow. So the 94% shows that the model follows stated criteria well. It is not proof of independent judgment. A re-run of the eval with the new product prompt is the measured check; see [Decision evals](evals.md).
 
 ## The original single-question route
 

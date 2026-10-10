@@ -6,25 +6,32 @@ Source: [`lib/ai/decide.ts`](../../lib/ai/decide.ts), [`lib/scenario.ts`](../../
 
 ## Decisions API: `next_action` instructions
 
-This is the text that `/api/decisions/district` and `/api/decisions/batch` send:
+This is the text that `/api/decisions/district` and `/api/decisions/batch` send. It is the single source of truth in [`lib/ai/decide.ts`](../../lib/ai/decide.ts); the eval runner imports the same constant.
 
-> Choose the single safest next operational step for the target facility. Consider report verification (verified flag, reportFlag, report age), days of stock against the resupply lead time plus safety buffer, inbound transfers, donor surplus after its reserve, and whether the action can bridge the gap. Prefer a local transfer when a verified donor has sufficient surplus and preserve every donor's reserve. Do not treat a transfer as a cure for upstream shortages: when upstream supply is delayed or unavailable and local surplus cannot cover the gap, escalate. The officer must approve all actions. If the snapshot contains a counterfactual field, judge that hypothetical scenario as stated.
+> Choose the single safest next operational step for the target facility. Apply these checks in order and stop at the first that holds.
+> 1) Verify first: if the target's count is unverified, has a reportFlag, is already under recount, or its dailyUse is far from weeklyDispensedTrend divided by 7, choose verify_count.
+> 2) Transfer: if one verified donor's transferable units (already net of its own reserve and open transfers) cover the target's gapUnits (coversGapPct 100), or nearly all of it (coversGapPct 75 or more), choose transfer_surplus. A donor that covers only a small part of the gap does not qualify, and unverified donors never count.
+> 3) Escalate: if no verified donor qualifies and upstream status is delayed or unavailable, or districtStore.daysOfDistrictDemand is below the medicine's leadTimeDays, choose escalate_supply_gap. Do not treat a transfer as a cure for upstream shortages.
+> 4) Otherwise choose draft_indent: resupply arrives in time and local surplus cannot cover the gap.
+> If the snapshot contains a counterfactual field, judge that hypothetical scenario as stated. The officer must approve all actions.
 
-| Phrase | Purpose |
+| Part | Purpose |
 | --- | --- |
-| "single safest next operational step" | Asks for one action, and makes safety the first goal |
-| "report verification (verified flag, reportFlag, report age)" | Names the exact snapshot fields for data quality, so a doubtful count leads to `verify_count` |
-| "days of stock against the resupply lead time plus safety buffer" | Names the signals that define risk |
-| "inbound transfers" | Stock already on the road reduces the need |
-| "donor surplus after its reserve" | The model sees surplus that is already safe to move |
-| "whether the action can bridge the gap" | Stops a small transfer from being chosen when it cannot cover the risk |
-| "Prefer a local transfer when a verified donor has sufficient surplus" | A transfer is the fastest and cheapest fix. Only a verified donor counts. |
-| "preserve every donor's reserve" | A transfer must never create a new stockout |
-| "Do not treat a transfer as a cure for upstream shortages ... escalate" | When the district is short and supply is late, the correct action is `escalate_supply_gap` |
+| "Apply these checks in order and stop at the first that holds" | Makes the priority explicit: data quality, then local fix, then escalation, then indent |
+| Check 1 names `verified`, `reportFlag`, recount, and `weeklyDispensedTrend` | A doubtful count, or a daily-use figure that contradicts the trend, leads to `verify_count` before any stock moves |
+| Check 2 uses `coversGapPct` 75 or more | A transfer must close the gap, or nearly all of it. This is the fix for the over-recommended transfers the evals found. |
+| "unverified donors never count" | Stock is never moved on a count that nobody has confirmed |
+| Check 3 names upstream status and `districtStore.daysOfDistrictDemand` | When the district itself is short, the correct action is escalation |
+| "Do not treat a transfer as a cure for upstream shortages" | Keeps the system honest about what local action can fix |
+| Check 4 | An indent is the default when resupply can arrive in time |
+| "counterfactual field" | Lets what-if re-runs work without a second prompt |
 | "The officer must approve all actions" | States the human-in-the-loop policy |
-| "If the snapshot contains a counterfactual field, judge that hypothetical scenario as stated" | Lets what-if re-runs work without a second prompt |
 
-The original single-question route (`/api/decisions`) uses an earlier, shorter version of this text for the three-clinic scenario.
+### Why the prompt changed
+
+The first version told the model to "prefer a local transfer when a verified donor has sufficient surplus". In the first live eval run, `gpt-6-luna` read "sufficient" too broadly and chose a transfer on 35 of 50 cases. That prompt scored 64%. A version with the criteria as ordered checks scored 94% on the same model. We moved the product to the ordered checks. The checks mirror the labeling policy, so the eval measures how well the model follows stated criteria. See [Decision evals](evals.md).
+
+The original single-question route (`/api/decisions`) still uses the first, shorter text for the three-clinic scenario.
 
 ## Choice descriptions
 
@@ -33,7 +40,7 @@ Each choice has a description that says **when** it applies, not only what it is
 | Choice | Description |
 | --- | --- |
 | `verify_count` | Request a recount when the latest stock report is uncertain or inconsistent. |
-| `transfer_surplus` | Move available surplus from a nearby clinic while preserving its safety reserve. |
+| `transfer_surplus` | District call: "Move surplus from a verified nearby donor, preserving its safety reserve. Applies only when that donor's safe surplus covers the target's gap (or nearly all of it)." The original route uses: "Move available surplus from a nearby clinic while preserving its safety reserve." |
 | `draft_indent` | Prepare a consumption-based indent when local transfer cannot cover the risk. |
 | `escalate_supply_gap` | Escalate when inventory is insufficient and upstream supply is delayed or unavailable. |
 

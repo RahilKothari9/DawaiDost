@@ -122,7 +122,7 @@ Only `gpt-6-luna` is enabled on `/v1/decisions` for the project key. The other m
 
 ### What the evals found
 
-The evals did their job. They found a real weakness in the product prompt, and they showed how to fix it.
+This is the point of evals. The harness caught a real failure mode before any officer saw it, and it measured a fix.
 
 - **The product prompt over-recommends transfers.** It chose `transfer_surplus` on 35 of 50 cases, including cases where the donor surplus is real but too small to close the gap. Some of these wrong transfers had confidence of 0.75 or more.
 - **Stated criteria fix most of it.** The explicit criteria variant lists the checks in order (verify, then a full-cover transfer, then escalate, else indent). It raises accuracy from 64% to 94% on the same model and the same snapshots. This variant mirrors the labeling policy, so it shows that the model follows stated criteria well. It is not proof of independent judgment.
@@ -135,11 +135,22 @@ The evals did their job. They found a real weakness in the product prompt, and t
 
 On the first pass, the rules scored 90% (45 of 50). They moved stock from donors with unverified counts (Z01, U01, U02, U03), and they missed a daily-use figure that contradicted the weekly trend (V05). The team then fixed `fallbackDecision` to ignore unverified or flagged donors and to verify when daily use contradicts the trend. The run above records 98%. Re-measured on the current code, the rules choose an acceptable action on all 50 cases (96% strict). Because the rules were tuned on this set, the rules baseline is not an independent benchmark.
 
-### What this means for the product
+### The fix in the product
 
-- The Decisions API remains the decision engine, and the rules remain the labeled fallback.
-- The measured next step is to move the product instructions toward the explicit criteria, and then to test on new cases that were **not** used to tune either the prompt or the rules.
-- Decisions on cases outside the written policy, such as mixed signals that no rule covers, are where model judgment can add value. The current set does not yet measure that.
+After this run, the product prompt changed (commit `a1699a5`):
+
+- `next_action` now states the criteria as ordered checks: verify, then transfer, then escalate, else indent. See [Prompt and choice design](prompt-design.md).
+- A transfer qualifies only when one verified donor covers the gap, or at least 75% of it.
+- The `transfer_surplus` choice description says the same thing.
+- The fallback rules use the same 75% threshold.
+
+The table above was measured **before** this change. The `product` row is the old prompt. A re-run with the new product prompt is the measured check. Until it is committed, we do not claim a new product number.
+
+### Caveats
+
+- The ordered criteria mirror the labeling policy. A high score shows that the model follows stated criteria. It is not proof of independent judgment.
+- The rules baseline (98% in the run) encodes the same policy, so it is a consistency check, not a competitor.
+- The next step is a held-out case set that was not used to tune the prompt or the rules, with mixed-signal cases that no single rule covers. That is where model judgment can add value.
 
 ## Tests
 
