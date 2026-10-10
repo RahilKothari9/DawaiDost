@@ -139,8 +139,8 @@ export function ReceiveScreen({ view, transferId, go, notify }: Common) {
           <div className={s.note} data-tone="warn" style={{ textAlign: "left", width: "100%" }}>
             <TriangleAlert aria-hidden />
             <div>
-              {Math.abs(diff)} {unitHi(m, Math.abs(diff))} {diff < 0 ? "कम" : "ज़्यादा"} मिले। जिला कार्यालय और {placeHi(from)} को सूचना भेज दी गई है।
-              <div className={s.en}>{Math.abs(diff)} {diff < 0 ? "short" : "over"}. Logged for the district officer; {from.name} asked to recount.</div>
+              {Math.abs(diff)} {unitHi(m, Math.abs(diff))} कम मिले। जिला कार्यालय को सूचना गई और {placeHi(from)} को दोबारा गिनने को कहा गया।
+              <div className={s.en}>{Math.abs(diff)} short. Logged for the district officer; {from.name} asked to recount.</div>
             </div>
           </div>
         ) : null}
@@ -182,7 +182,7 @@ export function ReceiveScreen({ view, transferId, go, notify }: Common) {
           </button>
           <button type="button" className={`${s.btn} ${s.block} ${s.big}`} onClick={() => setMode("count")}>
             <Pencil aria-hidden />
-            <span className={s.btnStack}>कम या ज़्यादा मिले<small>Different count</small></span>
+            <span className={s.btnStack}>कम मिले<small>Fewer arrived</small></span>
           </button>
         </>
       ) : (
@@ -190,10 +190,10 @@ export function ReceiveScreen({ view, transferId, go, notify }: Common) {
           unitHi={unitHi(m)}
           unitEn={unitEn(m)}
           prompt={{ hi: `कितने ${unitHi(m)} मिले?`, en: `How many ${unitEn(m)} arrived? (sent: ${t.quantity})` }}
-          max={t.quantity * 3}
+          max={t.quantity}
           warn={(n) => n === t.quantity ? null : {
-            hi: `भेजे गए ${t.quantity} थे। ${Math.abs(n - t.quantity)} ${n < t.quantity ? "कम" : "ज़्यादा"} दर्ज होंगे और जिला कार्यालय को सूचना जाएगी।`,
-            en: `${t.quantity} were sent. A ${Math.abs(n - t.quantity)}-unit ${n < t.quantity ? "shortfall" : "excess"} will be reported to the district office.`,
+            hi: `भेजे गए ${t.quantity} थे। ${t.quantity - n} कम दर्ज होंगे और जिला कार्यालय को सूचना जाएगी।`,
+            en: `${t.quantity} were sent. A shortfall of ${t.quantity - n} will be reported to the district office.`,
           }}
           confirmLabel={{ hi: "हाँ, इतने ही मिले", en: "Yes, this many arrived" }}
           onConfirm={(n) => confirm(n)}

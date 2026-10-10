@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState } from "../../lib/district/data";
 import type { DistrictState, Transfer } from "../../lib/district/types";
+import { districtReducer } from "../../lib/district/store";
+import type { DistrictAction } from "../../lib/district/types";
 import { dispatchActions, keypadReportActions, receiptActions } from "../../lib/pharmacist/actions";
 import { dispatchPlan, facilityChoices, inboxMessages, pharmacistView } from "../../lib/pharmacist/derive";
 import { facilityHi, unitHi } from "../../lib/pharmacist/hindi";
@@ -49,37 +51,55 @@ describe("pharmacist view", () => {
   });
 });
 
-describe("pharmacist actions", () => {
-  it("dispatch moves an approved transfer in transit with a pharmacist-attributed event", () => {
+const run = (state: DistrictState, actions: DistrictAction[]) => actions.reduce(districtReducer, state);
+const stockOf = (s: DistrictState, f: string, m = "metformin-500") => s.stock.find((r) => r.facilityId === f && r.medicineId === m)!;
+
+describe("pharmacist actions (through the district reducer)", () => {
+  it("dispatch puts the transfer in transit, credited to the donor pharmacist, with no extra event", () => {
     const { state, t } = withTransfer(base(), {});
     const actions = dispatchActions(state, t);
-    expect(actions[0]).toEqual({ type: "SET_TRANSFER_STATUS", transferId: "tr-test", status: "in_transit" });
-    expect(actions[1].type === "ADD_TIMELINE" && actions[1].event.actor).toContain("S. Verma");
-    expect(dispatchActions(state, { ...t, status: "in_transit" })).toEqual([]);
+    expect(actions).toEqual([{ type: "SET_TRANSFER_STATUS", transferId: "tr-test", status: "in_transit", actor: "S. Verma (pharmacist, Kalyanpur PHC)" }]);
+    const next = run(state, actions);
+    expect(next.transfers.find((x) => x.id === "tr-test")?.status).toBe("in_transit");
+    expect(next.timeline[0].actor).toContain("S. Verma");
+    expect(next.timeline.length).toBe(state.timeline.length + 1);
+    expect(dispatchActions(next, next.transfers.find((x) => x.id === "tr-test")!)).toEqual([]);
   });
 
-  it("full receipt only delivers and logs", () => {
+  it("full receipt delivers the whole consignment", () => {
     const { state, t } = withTransfer(base(), { status: "in_transit", dispatchedAt: base().now });
     const actions = receiptActions(state, t, 45);
-    expect(actions.map((a) => a.type)).toEqual(["SET_TRANSFER_STATUS"]);
+    expect(actions).toEqual([{ type: "CONFIRM_RECEIPT", transferId: "tr-test", receivedQty: 45, actor: "R. Mishra (pharmacist, Saraswati PHC)" }]);
+    const next = run(state, actions);
+    expect(next.transfers.find((x) => x.id === "tr-test")?.status).toBe("delivered");
+    expect(stockOf(next, "saraswati").stock).toBe(16 + 45);
+    expect(stockOf(next, "kalyanpur").recountRequested ?? null).toBeNull();
   });
 
-  it("short receipt sets the shelf to what arrived, logs a discrepancy and asks the donor to recount", () => {
+  it("short receipt credits only what was counted and asks the donor to recount", () => {
     const { state, t } = withTransfer(base(), { status: "in_transit", dispatchedAt: base().now });
-    const actions = receiptActions(state, t, 40);
-    expect(actions.map((a) => a.type)).toEqual(["SET_TRANSFER_STATUS", "RECORD_VOICE_REPORT", "ADD_TIMELINE", "REQUEST_RECOUNT"]);
-    const report = actions[1];
-    expect(report.type === "RECORD_VOICE_REPORT" && report.report.count).toBe(16 + 40);
-    const recount = actions[3];
-    expect(recount.type === "REQUEST_RECOUNT" && recount.facilityId).toBe("kalyanpur");
+    const next = run(state, receiptActions(state, t, 40));
+    expect(next.transfers.find((x) => x.id === "tr-test")?.receivedQuantity).toBe(40);
+    expect(stockOf(next, "saraswati").stock).toBe(16 + 40);
+    expect(stockOf(next, "kalyanpur").recountRequested).toBeTruthy();
+    const v = pharmacistView(next, "kalyanpur")!;
+    expect(v.recounts.map((r) => r.medicine.id)).toContain("metformin-500");
+    expect(inboxMessages(next, "saraswati").some((m) => m.tone === "warn" && m.hi.includes("कम"))).toBe(true);
+    expect(inboxMessages(next, "kalyanpur").some((m) => m.task?.kind === "recount")).toBe(true);
   });
 
-  it("keypad report is manual-sourced and flags out-of-range counts", () => {
+  it("receipt count never exceeds what was dispatched", () => {
+    const { state, t } = withTransfer(base(), { status: "in_transit", dispatchedAt: base().now });
+    const [a] = receiptActions(state, t, 99);
+    expect(a.type === "CONFIRM_RECEIPT" && a.receivedQty).toBe(45);
+  });
+
+  it("keypad report is stored as manual and flags out-of-range counts", () => {
     const s = base();
     const f = s.facilities.find((x) => x.id === "saraswati")!;
-    const [ok] = keypadReportActions(s, f, "metformin-500", 16);
-    expect(ok.type === "RECORD_VOICE_REPORT" && (ok.report as { reportSource?: string }).reportSource).toBe("manual");
-    expect(ok.type === "RECORD_VOICE_REPORT" && ok.report.needsRecount).toBe(false);
+    const ok = keypadReportActions(s, f, "metformin-500", 16);
+    expect(ok[0].type === "RECORD_VOICE_REPORT" && ok[0].reportSource).toBe("manual");
+    expect(stockOf(run(s, ok), "saraswati").reportSource).toBe("manual");
     const [odd] = keypadReportActions(s, f, "metformin-500", 400);
     expect(odd.type === "RECORD_VOICE_REPORT" && odd.report.needsRecount).toBe(true);
   });

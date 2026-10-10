@@ -137,12 +137,6 @@ export type InboxMessage = {
   task?: { kind: "dispatch" | "receive" | "recount"; id: string };
 };
 
-const SHORT_PREFIX = "ph-short-";
-/** Event id for a receipt shortfall; the inbox parses it back for the Hindi message. */
-export function shortfallEventId(transferId: string, received: number, at: string): string {
-  return `${SHORT_PREFIX}${received}-${ms(at).toString(36)}-${transferId}`;
-}
-
 export function inboxMessages(state: DistrictState, facilityId: string): InboxMessage[] {
   const facilities = new Map(state.facilities.map((f) => [f.id, f]));
   const meds = new Map(state.medicines.map((m) => [m.id, m]));
@@ -180,26 +174,33 @@ export function inboxMessages(state: DistrictState, facilityId: string): InboxMe
             en: `Recorded: ${qEn} dispatched to ${to?.name}.` });
     }
     if (t.deliveredAt) {
-      out.push(incoming
-        ? { id: `${t.id}-r`, at: t.deliveredAt, channel: "sms", tone: "done",
-            hi: `प्राप्ति दर्ज: ${placeHi(from)} से ${medicineHi(m)} आपके स्टॉक में जुड़ गया।`,
-            en: `Receipt recorded: ${m?.name} from ${from?.name} added to your stock.` }
-        : { id: `${t.id}-r`, at: t.deliveredAt, channel: "sms", tone: "done",
-            hi: `${facilityHi(to)} ने आपका भेजा ${medicineHi(m)} प्राप्त कर लिया। धन्यवाद।`,
-            en: `${to?.name} received the ${m?.name} you sent. Thank you.` });
+      const got = t.receivedQuantity ?? t.quantity;
+      const short = t.quantity - got;
+      const gotHi = `${got} ${unitHi(m, got)} ${medicineHi(m)}`;
+      const id = `${t.id}-r`;
+      if (incoming) {
+        out.push(short > 0
+          ? { id, at: t.deliveredAt, channel: "sms", tone: "warn",
+              hi: `प्राप्ति दर्ज: ${gotHi} आपके स्टॉक में जुड़ा। ${short} ${unitHi(m, short)} कम आए — जिला कार्यालय जाँच करेगा।`,
+              en: `Receipt recorded: ${got} of ${t.quantity} added to your stock. ${short} short; the district office will follow up.` }
+          : { id, at: t.deliveredAt, channel: "sms", tone: "done",
+              hi: `प्राप्ति दर्ज: ${placeHi(from)} से ${gotHi} आपके स्टॉक में जुड़ गया।`,
+              en: `Receipt recorded: ${got} ${unitEn(m, got)} of ${m?.name} from ${from?.name} added to your stock.` });
+      } else {
+        out.push(short > 0
+          ? { id, at: t.deliveredAt, channel: "sms", tone: "warn",
+              hi: `${facilityHi(to)} को ${t.quantity} में से ${got} ही मिले। कृपया अपनी अलमारी दोबारा गिनें।`,
+              en: `${to?.name} counted ${got} of the ${t.quantity} you sent. Please recount your shelf.` }
+          : { id, at: t.deliveredAt, channel: "sms", tone: "done",
+              hi: `${facilityHi(to)} ने आपका भेजा ${medicineHi(m)} प्राप्त कर लिया। धन्यवाद।`,
+              en: `${to?.name} received the ${m?.name} you sent. Thank you.` });
+      }
     }
   }
 
   for (const e of state.timeline) {
     if (e.facilityId !== facilityId) continue;
     const m = e.medicineId ? meds.get(e.medicineId) : undefined;
-    if (e.id.startsWith(SHORT_PREFIX)) {
-      const received = Number(e.id.slice(SHORT_PREFIX.length).split("-")[0]);
-      out.push({ id: e.id, at: e.at, channel: "sms", tone: "warn",
-        hi: `कमी दर्ज: ${medicineHi(m)} के ${Number.isFinite(received) ? received : ""} ${unitHi(m)} ही मिले। जिला कार्यालय जाँच करेगा।`,
-        en: e.title });
-      continue;
-    }
     switch (e.kind) {
       case "voice_report": {
         const n = /reported (\d+)/i.exec(e.title)?.[1] ?? /(\d+)\s+(strips?|sachets?|inhalers?)/i.exec(e.title)?.[1];

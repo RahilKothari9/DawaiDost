@@ -128,8 +128,8 @@ export function CountScreen({ view, medicineId, recount, go, notify }: {
           };
         }}
         confirmLabel={{ hi: "हाँ, यही गिनती है — भेजें", en: "Yes, send this count" }}
-        onConfirm={(n, warned) => {
-          keypadReportActions(state, view.facility, medicineId, n, { confirmedOutOfRange: warned, answeringRecount: recount }).forEach(dispatch);
+        onConfirm={(n) => {
+          keypadReportActions(state, view.facility, medicineId, n, { answeringRecount: recount }).forEach(dispatch);
           setSaved(n);
           notify("गिनती भेज दी गई", `${m.name}: ${n} ${unitEn(m, n)} sent to the district office`);
         }}
