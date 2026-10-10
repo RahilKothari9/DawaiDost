@@ -172,7 +172,7 @@ export function buildMapModel(state: DistrictState, assessments: StockAssessment
     const from = facilityById.get(fromId);
     const to = facilityById.get(toId);
     if (!from || !to) return;
-    const arc = makeArc(from.lngLat, to.lngLat, status === "opportunity" ? 0.16 : 0.24);
+    const arc = makeArc(from.lngLat, to.lngLat, status === "opportunity" ? 0.2 : 0.3);
     flows.push({
       id, status, medicineId, fromId, toId, fromName: from.name, toName: to.name, quantity, etaHours,
       distanceKm: distanceKm || haversineKm({ lat: from.lngLat[1], lng: from.lngLat[0] }, { lat: to.lngLat[1], lng: to.lngLat[0] }),

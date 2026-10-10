@@ -42,6 +42,7 @@ type FC = GeoJSON.FeatureCollection;
 
 const EMPTY: FC = { type: "FeatureCollection", features: [] };
 const FLOW_LAYERS = [
+  "dd-flow-glow",
   "dd-flow-opportunity",
   "dd-flow-delivered",
   "dd-flow-proposed",
@@ -116,12 +117,13 @@ function installLayers(map: MLMap, p: MapPalette) {
 
   const dimOpacity = (base: number): Expr => ["*", base, ["case", ["get", "dim"], 0.28, ["get", "primary"], 1, 0.62]];
   add({ id: "dd-flow-hl", type: "line", source: "dd-flows", filter: ["all", ["get", "hl"], ["!=", ["get", "status"], "opportunity"]], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": 0.2, "line-width": 12, "line-blur": 4 } });
+  add({ id: "dd-flow-glow", type: "line", source: "dd-flows", filter: ["match", ["get", "status"], ["approved", "in_transit"], true, false], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.16), "line-width": 9, "line-blur": 5 } });
   add({ id: "dd-flow-opportunity", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "opportunity"], layout: { "line-cap": "round" }, paint: { "line-color": p.risk.surplus, "line-opacity": ["case", ["get", "hl"], 0.95, dimOpacity(0.6)], "line-width": ["case", ["get", "hl"], 2.4, 1.6], "line-dasharray": [0.5, 2] } });
   add({ id: "dd-flow-delivered", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "delivered"], layout: { "line-cap": "round" }, paint: { "line-color": p.risk.ok, "line-opacity": dimOpacity(0.42), "line-width": 1.8 } });
   add({ id: "dd-flow-proposed", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "proposed"], layout: { "line-cap": "butt" }, paint: { "line-color": p.ink2, "line-opacity": dimOpacity(0.7), "line-width": 2.2, "line-dasharray": [2.2, 1.6] } });
-  add({ id: "dd-flow-approved", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "approved"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.95), "line-width": 2.8 } });
+  add({ id: "dd-flow-approved", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "approved"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.95), "line-width": 3.2 } });
   add({ id: "dd-flow-transit-base", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "in_transit"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": dimOpacity(0.22), "line-width": 4 } });
-  add({ id: "dd-flow-transit-dash", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "in_transit"], paint: { "line-color": p.accent, "line-opacity": dimOpacity(1), "line-width": 2.6, "line-dasharray": DASH_SEQUENCE[0] } });
+  add({ id: "dd-flow-transit-dash", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "in_transit"], paint: { "line-color": p.accent, "line-opacity": dimOpacity(1), "line-width": 3, "line-dasharray": DASH_SEQUENCE[0] } });
   add({ id: "dd-trail", type: "line", source: "dd-motion", filter: ["==", ["get", "kind"], "trail"], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": ["*", 0.85, ["case", ["get", "dim"], 0.3, 1]], "line-width": 3.4 } });
   add({
     id: "dd-chevrons",
