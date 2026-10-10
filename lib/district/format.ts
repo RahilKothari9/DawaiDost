@@ -14,7 +14,7 @@ export const RISK_COLOR: Record<RiskLevel, string> = {
   stockout: "var(--risk-stockout)", critical: "var(--risk-critical)", low: "var(--risk-low)", ok: "var(--risk-ok)", surplus: "var(--risk-surplus)",
 };
 /** Raw hex fallbacks matching app/tokens.css, for canvas/WebGL layers that cannot read CSS vars. */
-export const RISK_HEX: Record<RiskLevel, string> = { stockout: "#a11d17", critical: "#dc4f1c", low: "#c98f06", ok: "#4f8162", surplus: "#1d6a86" };
+export const RISK_HEX: Record<RiskLevel, string> = { stockout: "#8e2c22", critical: "#b65a32", low: "#a9842f", ok: "#63806a", surplus: "#4a7880" };
 export const RISK_DESCRIPTION: Record<RiskLevel, string> = {
   stockout: "Shelf is empty.",
   critical: "Runs out before a district resupply can arrive.",

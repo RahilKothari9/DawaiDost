@@ -10,15 +10,15 @@
   --line: #dad5c7;
   --line-strong: #b5af9f;
 
-  --accent: #3b2cf0;       /* OpenAI decision layer, transfers in motion. Nothing else. */
+  --accent: #2f4a78;       /* OpenAI decision layer, transfers in motion. Nothing else. */
   --accent-ink: #ffffff;
-  --accent-soft: #e8e5ff;
+  --accent-soft: #e4e8ef;
 
-  --risk-stockout: #a11d17;
-  --risk-critical: #dc4f1c;
-  --risk-low: #c98f06;
-  --risk-ok: #4f8162;
-  --risk-surplus: #1d6a86;
+  --risk-stockout: #8e2c22;
+  --risk-critical: #b65a32;
+  --risk-low: #a9842f;
+  --risk-ok: #63806a;
+  --risk-surplus: #4a7880;
 
   --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-dm-mono), "DM Mono", ui-monospace, monospace;
