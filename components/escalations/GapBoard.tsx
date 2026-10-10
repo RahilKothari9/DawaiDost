@@ -30,7 +30,7 @@ export function StagePill({ esc }: { esc: Escalation }) {
   return <span className={s.stagePill} data-stage={esc.stage}><i aria-hidden />{STAGE_LABEL[esc.stage]}</span>;
 }
 
-const fmtD = (d: number | null) => (d === null ? "—" : d < 10 ? d.toFixed(1) : String(Math.round(d)));
+const fmtD = (d: number | null) => (d === null ? "—" : d < 20 ? d.toFixed(1) : String(Math.round(d)));
 
 /** Facility cover (solid) plus warehouse cover (light), against the lead time + buffer tick. */
 export function CoverageBar({ gap }: { gap: SupplyGap }) {
@@ -48,7 +48,6 @@ export function CoverageBar({ gap }: { gap: SupplyGap }) {
       </div>
       <span className={`${s.covText} num`}>
         <b>{fmtD(gap.siteCoverageDays)}</b>
-        {wh > 0 ? <span className="muted"> +{fmtD(gap.warehouseCoverageDays)}</span> : null}
         <span className="muted"> / {gap.thresholdDays} d</span>
       </span>
     </div>
@@ -71,11 +70,10 @@ export function GapBoard({ gaps, selected, onSelect, escalationFor, decisionsFor
               <th scope="col">Medicine</th>
               <th scope="col">Status</th>
               <th scope="col">District cover, days</th>
-              <th scope="col" className={s.r}>Need · surplus</th>
-              <th scope="col" className={s.r}>Short after local options</th>
-              <th scope="col" className={s.r}>Facilities · people</th>
+              <th scope="col" className={s.r}>Need · safe surplus</th>
+              <th scope="col" className={s.r}>Short</th>
+              <th scope="col" className={s.r}>Facilities</th>
               <th scope="col" className={s.r}>District stockout</th>
-              <th scope="col">Redistribution</th>
               <th scope="col">Escalation</th>
             </tr>
           </thead>
@@ -97,13 +95,19 @@ export function GapBoard({ gaps, selected, onSelect, escalationFor, decisionsFor
                   <td className={`${s.r} num`}>
                     {g.needUnits ? fmtUnits(g.needUnits) : <span className={s.zero}>0</span>}
                     <span className="muted"> · {fmtUnits(g.transferableUnits)}</span>
+                    {g.needUnits > 0 ? (
+                      <span className={`${s.verdict} ${s.sub}`} data-ok={g.redistributionCloses}>
+                        {g.redistributionCloses ? <CircleCheck aria-hidden /> : <CircleSlash aria-hidden />}
+                        {g.redistributionCloses ? "Surplus covers it" : "Surplus cannot cover"}
+                      </span>
+                    ) : null}
                   </td>
                   <td className={`${s.r} num`}>
                     {g.gapUnits > 0 ? <span className={s.short}>{fmtUnits(g.gapUnits)}</span> : <span className={s.zero}>0</span>}
                   </td>
                   <td className={`${s.r} num`}>
-                    {g.affected.length ? <>{g.affected.length} · {fmtUnits(g.affectedPopulation)}</> : <span className={s.zero}>0</span>}
-                    {g.stockedOut ? <span className={s.sub}>{g.stockedOut} stocked out</span> : null}
+                    {g.affected.length ? g.affected.length : <span className={s.zero}>0</span>}
+                    {g.affected.length ? <span className={s.sub}>{fmtUnits(g.affectedPopulation)} people{g.stockedOut ? ` · ${g.stockedOut} out` : ""}</span> : null}
                   </td>
                   <td className={`${s.r} num`}>
                     {g.districtStockoutDate ? (
@@ -112,14 +116,6 @@ export function GapBoard({ gaps, selected, onSelect, escalationFor, decisionsFor
                         <span className={s.sub}>{fmtDate(`${g.districtStockoutDate}T12:00:00+05:30`)}</span>
                       </>
                     ) : "—"}
-                  </td>
-                  <td>
-                    {g.needUnits === 0 ? <span className={s.zero}>No need</span> : (
-                      <span className={s.verdict} data-ok={g.redistributionCloses}>
-                        {g.redistributionCloses ? <CircleCheck aria-hidden /> : <CircleSlash aria-hidden />}
-                        {g.redistributionCloses ? "Can close" : "Cannot close"}
-                      </span>
-                    )}
                   </td>
                   <td>
                     {esc ? <StagePill esc={esc} /> : g.status === "escalate" ? <span className={s.status} data-status="escalate">Not raised</span> : <span className={s.zero}>—</span>}

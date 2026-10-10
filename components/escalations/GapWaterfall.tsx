@@ -80,12 +80,12 @@ export function GapWaterfall({ gap }: { gap: SupplyGap }) {
           note={steps[hover].note}
         />
       ) : null}
-      <table className="sr-only">
+      <div className="sr-only"><table>
         <caption>Supply gap waterfall, {u}</caption>
         <tbody>
           {steps.map((st) => <tr key={st.key}><th scope="row">{st.label}</th><td>{st.value}</td><td>{st.note}</td></tr>)}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }

@@ -16,7 +16,7 @@
 
 /* ---------- board ---------- */
 .boardWrap { overflow-x: auto; margin: 0 -18px; padding: 0 18px; }
-.board { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 980px; }
+.board { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 860px; }
 .board th {
   text-align: left; font-weight: 500; font-size: 11px; color: var(--muted);
   padding: 0 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap;
@@ -41,8 +41,9 @@
 .status[data-status="local"] svg { color: var(--risk-surplus); }
 .status[data-status="clear"] svg { color: var(--risk-ok); }
 
-.verdict { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; }
+.verdict { display: flex; justify-content: flex-end; font-family: var(--font-sans); align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; }
 .verdict svg { width: 13px; height: 13px; }
+.verdict[data-ok="false"] { color: var(--ink-2); }
 .verdict[data-ok="false"] svg { color: var(--risk-stockout); }
 .verdict[data-ok="true"] svg { color: var(--risk-ok); }
 
@@ -192,13 +193,15 @@
 .evidence { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .evidence th, .evidence td { border: 1px solid #c9c4b6; padding: 6px 8px; text-align: left; vertical-align: top; }
 .evidence th { background: #f1eee6; font-weight: 600; font-size: 11.5px; }
-.evidence td.val { font-family: var(--font-mono); white-space: nowrap; }
+.evidence td.val { font-family: var(--font-mono); }
 .asks { list-style: decimal; padding-left: 20px; display: grid; gap: 6px; }
 .signoff { margin-top: 28px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; font-size: 13px; }
 .signoff small { display: block; color: #555; font-size: 11.5px; }
 .footnote { margin-top: 20px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 10.5px; color: #666; }
 
 .printRoot { display: none; }
+.scrollX { overflow-x: auto; max-width: 100%; }
+@media print { .scrollX { overflow: visible; } }
 
 .empty { font-size: 13px; color: var(--muted); }
 .err { font-size: 12.5px; color: var(--risk-stockout); margin-top: 8px; }

@@ -75,17 +75,17 @@ export function LeadTimeWatch({ state, watches, selected, onSelect }: { state: D
                   <td className={`${s.r} num`}>{w.expectedLeadDays} d</td>
                   <td className={`${s.r} num`}>
                     {w.observedLeadDays === null ? <span className="muted">planned value used</span> : leadRange(w.observedLeadDays)}
-                    <span className={s.sub}>{w.observations.length} reorder-triggered {w.observations.length === 1 ? "delivery" : "deliveries"}</span>
+                    <span className={s.sub}>{w.observations.length} {w.observations.length === 1 ? "delivery" : "deliveries"}</span>
                   </td>
                   <td className={`${s.r} num`}>{w.observations.length ? `${w.lateDeliveries} of ${w.observations.length}` : "—"}</td>
                   <td><ConsignmentClock w={w} /></td>
                   <td className="num" style={{ fontSize: 12 }}>
                     {w.warehouse.expectedNextOn ? d(w.warehouse.expectedNextOn) : "No date"}
-                    <span className={s.sub}>{m?.upstream?.expectedOn ? "state confirmed" : w.warehouse.lastReceiptWeekOf ? "from cycle" : ""}</span>
+                    <span className={s.sub}>{m?.upstream?.expectedOn ? "state confirmed" : w.warehouse.overdueDays > 0 ? "was due; no new date" : w.warehouse.lastReceiptWeekOf ? "from cycle" : ""}</span>
                   </td>
                   <td>
                     <span className={s.flag} data-flag={w.flag} title={w.note}><F.icon aria-hidden strokeWidth={2.2} />{F.label}</span>
-                    <span className={s.sub} style={{ whiteSpace: "normal", maxWidth: 260 }}>{w.note}</span>
+                    {w.flag !== "on_time" ? <span className={s.sub} style={{ whiteSpace: "normal", maxWidth: 240 }}>{w.note}</span> : null}
                   </td>
                 </tr>
               );

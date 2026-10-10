@@ -136,7 +136,15 @@ function GapDetail({ gap, escalations, pushToast }: { gap: SupplyGap; escalation
   const { state } = useDistrict();
   const label = `${gap.medicine.name} ${gap.medicine.strength}`;
   const shown = gap.affected.slice(0, 8);
+  const esc = activeEscalation(escalations, gap.medicineId);
+  const [memos, setMemos] = useState<Record<string, MemoResponse>>({});
+  const memo = esc ? memos[esc.id] ?? memoCache.get(esc.id) ?? null : null;
+  const saveMemo = (id: string, m: MemoResponse) => {
+    memoCache.set(id, m);
+    setMemos((x) => ({ ...x, [id]: m }));
+  };
   return (
+    <>
     <div className={s.detail}>
       <div className={s.stack}>
         <Panel kicker={label} title={gap.gapUnits > 0 ? `${fmtUnits(gap.gapUnits)} ${gap.medicine.unit} short after every local option` : "Local options cover the need"} actions={<StatusLabel status={gap.status} />}>
@@ -152,7 +160,7 @@ function GapDetail({ gap, escalations, pushToast }: { gap: SupplyGap; escalation
         </Panel>
         {gap.affected.length ? (
           <Panel kicker={`${gap.affected.length} facilities · ${fmtUnits(gap.affectedPopulation)} people`} title="Who runs short">
-            <table className={s.facTable}>
+            <div className={s.scrollX}><table className={s.facTable}>
               <thead>
                 <tr><th scope="col">Facility</th><th scope="col">Block</th><th scope="col">Status</th><th scope="col" className={s.r}>Stock</th><th scope="col" className={s.r}>Needs</th><th scope="col" className={s.r}>Catchment</th></tr>
               </thead>
@@ -168,27 +176,43 @@ function GapDetail({ gap, escalations, pushToast }: { gap: SupplyGap; escalation
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
             {gap.affected.length > shown.length ? <p className={s.more}>and {gap.affected.length - shown.length} more; the memo annexure lists all.</p> : null}
           </Panel>
         ) : null}
       </div>
-      <EscalationPanel gap={gap} escalations={escalations} decisions={state.decisions} pushToast={pushToast} />
+      <EscalationPanel gap={gap} escalations={escalations} decisions={state.decisions} pushToast={pushToast} memo={memo} saveMemo={saveMemo} />
     </div>
+    {esc && memo ? (
+      <Panel kicker={memo.memo.ref} title={`Memo to the state: ${label}`} actions={<Button size="sm" variant="secondary" icon={<Printer size={14} />} onClick={() => window.print()}>Print</Button>}>
+        <div className={s.memoBar}>
+          <span className={s.source} data-live={memo.source === "live"}>
+            {memo.source === "live" ? <Sparkles aria-hidden /> : <FileText aria-hidden />}
+            {memo.source === "live" ? `Wording drafted by ${memo.model ?? "OpenAI"} · every number checked against the ledger` : `Template memo · ${FALLBACK_REASON[memo.fallbackReason ?? "request_failed"]}`}
+          </span>
+          <span className="muted" style={{ fontSize: 12 }}>Requested delivery by {dateOnly(memo.memo.requestedDeliveryDate)}</span>
+        </div>
+        <MemoSheet memo={memo.memo} response={memo} district={state.district.name} officer={state.district.officer} />
+        <PrintPortal>
+          <MemoSheet memo={memo.memo} response={memo} district={state.district.name} officer={state.district.officer} />
+        </PrintPortal>
+      </Panel>
+    ) : null}
+    </>
   );
 }
 
-function EscalationPanel({ gap, escalations, decisions, pushToast }: {
+function EscalationPanel({ gap, escalations, decisions, pushToast, memo, saveMemo }: {
   gap: SupplyGap;
   escalations: Escalation[];
   decisions: DecisionRecord[];
   pushToast: ReturnType<typeof useShell>["pushToast"];
+  memo: MemoResponse | null;
+  saveMemo: (escalationId: string, memo: MemoResponse) => void;
 }) {
   const { state, dispatch } = useDistrict();
   const esc = activeEscalation(escalations, gap.medicineId);
   const last = escalations.find((e) => e.medicineId === gap.medicineId && e.stage === "resolved");
-  const [memos, setMemos] = useState<Record<string, MemoResponse>>({});
-  const memo = esc ? memos[esc.id] ?? memoCache.get(esc.id) ?? null : null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -221,8 +245,7 @@ function EscalationPanel({ gap, escalations, decisions, pushToast }: {
       const res = await fetch("/api/escalations/memo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ facts }) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as MemoResponse;
-      memoCache.set(esc.id, json);
-      setMemos((m) => ({ ...m, [esc.id]: json }));
+      saveMemo(esc.id, json);
     } catch (e) {
       setError(`Could not draft the memo (${e instanceof Error ? e.message : "network error"}). Try again.`);
     } finally {
@@ -278,7 +301,6 @@ function EscalationPanel({ gap, escalations, decisions, pushToast }: {
                   {memo ? "Redraft memo" : "Draft memo"}
                 </Button>
               ) : null}
-              {memo ? <Button size="sm" variant="secondary" icon={<Printer size={14} />} onClick={() => window.print()}>Print</Button> : null}
               {next ? (
                 <>
                   {next !== "sent" ? <input className={s.noteInput} value={note} onChange={(e) => setNote(e.target.value)} placeholder={next === "scheduled" ? "Dispatch date and quantity from the state" : "Note (optional)"} aria-label="Note for this stage" /> : null}
@@ -289,6 +311,7 @@ function EscalationPanel({ gap, escalations, decisions, pushToast }: {
               ) : null}
             </div>
             {error ? <p className={s.err} role="alert">{error}</p> : null}
+            {memo ? <p className={s.more}>Memo {memo.memo.ref} is below. {esc.stage === "draft" ? "Print it, dispatch it, then mark it sent." : ""}</p> : null}
             {esc.stage === "draft" && !memo ? <p className={s.explain} style={{ marginTop: 10 }}>Draft the memo first. Code computes every figure; the model only writes the wording, and any number it uses is checked against the ledger.</p> : null}
             <ol className={s.history} aria-label="Stage history">
               {[...esc.history].reverse().map((h) => (
@@ -338,21 +361,7 @@ function EscalationPanel({ gap, escalations, decisions, pushToast }: {
         </div>
       </Panel>
 
-      {esc && memo ? (
-        <Panel kicker={memo.memo.ref} title="Memo to the state">
-          <div className={s.memoBar}>
-            <span className={s.source} data-live={memo.source === "live"}>
-              {memo.source === "live" ? <Sparkles aria-hidden /> : <FileText aria-hidden />}
-              {memo.source === "live" ? `Drafted by ${memo.model ?? "OpenAI"} · numbers verified` : `Template memo · ${FALLBACK_REASON[memo.fallbackReason ?? "request_failed"]}`}
-            </span>
-            <span className="muted" style={{ fontSize: 12 }}>Requested by {dateOnly(memo.memo.requestedDeliveryDate)}</span>
-          </div>
-          <MemoSheet memo={memo.memo} response={memo} district={state.district.name} officer={state.district.officer} />
-          <PrintPortal>
-            <MemoSheet memo={memo.memo} response={memo} district={state.district.name} officer={state.district.officer} />
-          </PrintPortal>
-        </Panel>
-      ) : null}
+
     </div>
   );
 }

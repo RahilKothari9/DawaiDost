@@ -7,6 +7,7 @@ import { fmtLongDate, fmtUnits } from "@/lib/escalations/memo";
 import s from "./escalations.module.css";
 
 export function MemoSheet({ memo, response, district, officer }: { memo: EscalationMemo; response: MemoResponse; district: string; officer: { name: string; title: string } }) {
+  const remarks = memo.evidence.some((e) => e.remark);
   return (
     <article className={s.sheet} aria-label="Escalation memo">
       <header className={s.sheetHead}>
@@ -29,14 +30,14 @@ export function MemoSheet({ memo, response, district, officer }: { memo: Escalat
       <p>{memo.summary}</p>
 
       <h3>Evidence (from the district stock ledger as of {fmtLongDate(memo.date)})</h3>
-      <table className={s.evidence}>
-        <thead><tr><th scope="col">Indicator</th><th scope="col">Value</th><th scope="col">Remark</th></tr></thead>
+      <div className={s.scrollX}><table className={s.evidence}>
+        <thead><tr><th scope="col">Indicator</th><th scope="col">Value</th>{remarks ? <th scope="col">Remark</th> : null}</tr></thead>
         <tbody>
           {memo.evidence.map((e) => (
-            <tr key={e.key}><td>{e.label}</td><td className={s.val}>{e.value}</td><td>{e.remark}</td></tr>
+            <tr key={e.key}><td>{e.label}</td><td className={s.val}>{e.value}</td>{remarks ? <td>{e.remark}</td> : null}</tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
 
       <h3>Requests</h3>
       <ol className={s.asks}>{memo.asks.map((a, i) => <li key={i}>{a}</li>)}</ol>
@@ -48,14 +49,14 @@ export function MemoSheet({ memo, response, district, officer }: { memo: Escalat
       {memo.annex.length ? (
         <>
           <h3>Annexure: facilities below required cover</h3>
-          <table className={s.evidence}>
+          <div className={s.scrollX}><table className={s.evidence}>
             <thead><tr><th scope="col">Facility</th><th scope="col">Block</th><th scope="col">Days of stock</th><th scope="col">Units needed</th><th scope="col">Catchment</th></tr></thead>
             <tbody>
               {memo.annex.map((a) => (
                 <tr key={a.name}><td>{a.name}</td><td>{a.block}</td><td className={s.val}>{a.daysOfStock ?? "—"}</td><td className={s.val}>{fmtUnits(a.needUnits)}</td><td className={s.val}>{fmtUnits(a.population)}</td></tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </>
       ) : null}
 
