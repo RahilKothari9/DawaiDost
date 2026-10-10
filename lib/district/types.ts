@@ -16,6 +16,14 @@ export type Medicine = {
   leadTimeDays: number; // district store resupply lead time
   safetyBufferDays: number;
   reserveDays: number; // a donor never goes below this many days of its own use
+  shortName?: string; // "Metformin 500"
+  upstream?: UpstreamSupply; // state/district supply line status (synthetic)
+};
+
+export type UpstreamSupply = {
+  status: "available" | "delayed" | "unavailable";
+  note: string;
+  expectedOn?: string | null; // ISO date of next consignment, null when unknown
 };
 
 export type FacilityType = "WAREHOUSE" | "DH" | "CHC" | "PHC";
@@ -31,7 +39,7 @@ export type Facility = {
   catchmentPopulation: number;
 };
 
-export type WeeklyPoint = { weekOf: string /* ISO date */; closingStock: number; dispensed: number };
+export type WeeklyPoint = { weekOf: string /* ISO date */; closingStock: number; dispensed: number; received?: number };
 
 export type StockRecord = {
   facilityId: string;
@@ -43,6 +51,19 @@ export type StockRecord = {
   reportSource: "voice" | "manual" | "system";
   verified: boolean;
   history: WeeklyPoint[]; // oldest first, 8–12 weeks
+  recountRequested?: { reason: string; at: string } | null;
+};
+
+export type AnomalyKind = "unexplained_increase" | "unexplained_drop" | "low_confidence" | "stale_report";
+
+export type AnomalyCheck = {
+  flagged: boolean;
+  kind: AnomalyKind | null;
+  expected: number | null; // expected count from last week's ledger
+  reported: number;
+  deviation: number; // reported - expected
+  tolerance: number;
+  reason: string;
 };
 
 export type RiskLevel = "stockout" | "critical" | "low" | "ok" | "surplus";
@@ -72,6 +93,42 @@ export type Transfer = {
   createdAt: string;
   updatedAt: string;
   decisionId?: string;
+  approvedAt?: string;
+  dispatchedAt?: string; // in_transit progress = (now - dispatchedAt) / etaHours
+  deliveredAt?: string;
+  reason?: string; // short planner note, e.g. "near-expiry stock"
+};
+
+export type DonorCandidate = {
+  facilityId: string;
+  name: string;
+  distanceKm: number;
+  stock: number;
+  dailyUse: number;
+  daysOfStock: number | null;
+  transferable: number; // after reserve and open outbound transfers
+  nearExpiry: { quantity: number; expiresOn: string; wouldExpireUnused: number } | null;
+  verified: boolean;
+  anomaly: boolean;
+  eligible: boolean;
+};
+
+export type DistrictKpis = {
+  facilitiesTotal: number;
+  facilitiesReporting: number; // reported in the last 7 days
+  atRiskFacilities: number; // >= 1 record stockout/critical/low
+  atRiskRecords: number;
+  stockouts: number;
+  criticalRecords: number;
+  unitsInTransit: number;
+  transfersOpen: number;
+  stockoutDaysAverted: number; // by approved / in_transit / delivered transfers
+  decisionsPending: number;
+  decisionsTotal: number;
+  liveDecisions: number;
+  fallbackDecisions: number;
+  liveRatio: number | null; // 0..1
+  anomalies: number;
 };
 
 export type DecisionStatus = "pending" | "approved" | "rejected" | "acknowledged";
