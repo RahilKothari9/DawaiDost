@@ -2,8 +2,10 @@ import type { DistrictState } from "../../lib/district/types";
 
 export const NOW = "2026-10-10T09:42:00+05:30";
 
-const hist = (closing: number, dispensed: number) =>
-  Array.from({ length: 6 }, (_, i) => ({ weekOf: `2026-0${8 + Math.floor(i / 4)}-${String(1 + (i % 4) * 7).padStart(2, "0")}`, closingStock: closing, dispensed }));
+const WEEKS = ["2026-08-31", "2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28", "2026-10-05"];
+/** Ledger consistent with the engine's anomaly check: last week closes at the current count. */
+const hist = (prevClosing: number, lastClosing: number, dispensed: number) =>
+  WEEKS.map((weekOf, i) => ({ weekOf, closingStock: i === WEEKS.length - 1 ? lastClosing : prevClosing, dispensed }));
 
 export function fixtureState(): DistrictState {
   return {
@@ -20,8 +22,8 @@ export function fixtureState(): DistrictState {
     ],
     stock: [
       { facilityId: "store", medicineId: "metformin-500", stock: 2000, dailyUse: 0, nearExpiry: null, lastReportAt: NOW, reportSource: "system", verified: true, history: [] },
-      { facilityId: "saraswati", medicineId: "metformin-500", stock: 16, dailyUse: 8, nearExpiry: null, lastReportAt: NOW, reportSource: "voice", verified: true, history: hist(60, 56) },
-      { facilityId: "kalyanpur", medicineId: "metformin-500", stock: 80, dailyUse: 5, nearExpiry: null, lastReportAt: NOW, reportSource: "voice", verified: true, history: hist(90, 35) },
+      { facilityId: "saraswati", medicineId: "metformin-500", stock: 16, dailyUse: 8, nearExpiry: null, lastReportAt: NOW, reportSource: "voice", verified: true, history: hist(56, 16, 56) },
+      { facilityId: "kalyanpur", medicineId: "metformin-500", stock: 80, dailyUse: 5, nearExpiry: null, lastReportAt: NOW, reportSource: "voice", verified: true, history: hist(107, 80, 35) },
       { facilityId: "rampur", medicineId: "metformin-500", stock: 9, dailyUse: 6, nearExpiry: null, lastReportAt: NOW, reportSource: "voice", verified: true, history: [] },
       { facilityId: "saraswati", medicineId: "amlodipine-5", stock: 3, dailyUse: 4, nearExpiry: null, lastReportAt: NOW, reportSource: "voice", verified: true, history: [] },
       { facilityId: "kalyanpur", medicineId: "amlodipine-5", stock: 20, dailyUse: 4, nearExpiry: null, lastReportAt: NOW, reportSource: "voice", verified: true, history: [] },

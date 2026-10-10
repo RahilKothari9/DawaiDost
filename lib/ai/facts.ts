@@ -1,6 +1,6 @@
 // OWNER: ai agent. Deterministic, facts-only decision snapshot for the Decisions API.
 // The model never calculates: every number below comes from code. Safe for client and server.
-import { assessStock, buildDistrictSnapshot, haversineKm } from "../district/engine";
+import { assessStock, buildDistrictSnapshot, detectAnomaly, donorCandidates } from "../district/engine";
 import type { DistrictState, Facility, Medicine, StockRecord, Transfer } from "../district/types";
 
 export const FACTS_KIND = "dawai-dost/decision-snapshot@2";
@@ -62,54 +62,42 @@ export const DECISION_POLICY =
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const days = (stock: number, use: number) => (use > 0 ? round1(stock / use) : null);
 
-function openOutbound(state: DistrictState, facilityId: string, medicineId: string) {
-  return state.transfers.filter((t) => t.fromId === facilityId && t.medicineId === medicineId && OPEN.includes(t.status)).reduce((s, t) => s + t.quantity, 0);
-}
-
 function inbound(state: DistrictState, facilityId: string, medicineId: string) {
   return state.transfers.filter((t) => t.toId === facilityId && t.medicineId === medicineId && OPEN.includes(t.status)).reduce((s, t) => s + t.quantity, 0);
 }
 
-function reportFlag(rec: StockRecord, ageHours: number): string | null {
+function reportFlag(rec: StockRecord, now: string): string | null {
   if (rec.recountRequested) return `recount already requested: ${rec.recountRequested.reason}`;
   if (!rec.verified) return "latest count not verified";
-  const h = rec.history ?? [];
-  if (h.length >= 1) {
-    const last = h[h.length - 1];
-    // A count well above last week's closing stock with no receipts recorded is suspicious.
-    if (rec.stock > last.closingStock * 1.5 + 5 && !(last.received && last.received > 0)) return "count is far above last week's closing stock with no receipt recorded";
+  try {
+    const a = detectAnomaly(rec, now);
+    if (a.flagged) return a.reason;
+  } catch {
+    /* engine check unavailable */
   }
-  if (ageHours > 24 * 10) return "report is more than 10 days old";
   return null;
 }
 
+/** Eligible donors (engine rules: verified, non-anomalous, reserve-safe, within range), best first. */
 export function rankDonors(state: DistrictState, target: Facility, medicine: Medicine, gapUnits: number): FactsDonor[] {
-  const out: FactsDonor[] = [];
-  for (const rec of state.stock) {
-    if (rec.medicineId !== medicine.id || rec.facilityId === target.id) continue;
-    const fac = state.facilities.find((f) => f.id === rec.facilityId);
-    if (!fac || fac.type === "WAREHOUSE") continue;
-    const a = assessStock(rec, medicine, state.now);
-    const transferable = Math.max(0, a.transferable - openOutbound(state, fac.id, medicine.id));
-    out.push({
-      facilityId: fac.id,
-      name: fac.name,
-      type: fac.type,
-      block: fac.block,
-      distanceKm: round1(haversineKm(target, fac)),
-      stock: rec.stock,
-      dailyUse: rec.dailyUse,
-      daysOfStock: days(rec.stock, rec.dailyUse),
-      transferable,
-      coversGapPct: gapUnits > 0 ? Math.min(100, Math.round((transferable / gapUnits) * 100)) : 100,
-      verified: rec.verified,
-      nearExpiryUnits: rec.nearExpiry?.quantity ?? 0,
-    });
-  }
-  // Eligible (verified, with surplus) first, then by how much of the gap they cover per km.
-  return out
-    .filter((d) => d.transferable > 0)
-    .sort((a, b) => Number(b.verified) - Number(a.verified) || b.coversGapPct / (a.distanceKm + 5) - a.coversGapPct / (b.distanceKm + 5) || a.distanceKm - b.distanceKm)
+  const facs = new Map(state.facilities.map((f) => [f.id, f]));
+  return donorCandidates(state, target.id, medicine.id)
+    .filter((d) => d.eligible && d.transferable > 0 && facs.get(d.facilityId)?.type !== "WAREHOUSE")
+    .map((d) => ({
+      facilityId: d.facilityId,
+      name: d.name,
+      type: facs.get(d.facilityId)?.type ?? "PHC",
+      block: facs.get(d.facilityId)?.block ?? "",
+      distanceKm: round1(d.distanceKm),
+      stock: d.stock,
+      dailyUse: d.dailyUse,
+      daysOfStock: d.daysOfStock === null ? null : round1(d.daysOfStock),
+      transferable: d.transferable,
+      coversGapPct: gapUnits > 0 ? Math.min(100, Math.round((d.transferable / gapUnits) * 100)) : 100,
+      verified: d.verified,
+      nearExpiryUnits: d.nearExpiry?.wouldExpireUnused ?? 0,
+    }))
+    .sort((a, b) => b.coversGapPct / (a.distanceKm + 5) - a.coversGapPct / (b.distanceKm + 5) || a.distanceKm - b.distanceKm)
     .slice(0, 5);
 }
 
@@ -135,8 +123,9 @@ export function buildDecisionFacts(state: DistrictState, facilityId: string, med
     kind: FACTS_KIND,
     asOf: state.now,
     district: `${state.district.name}, ${state.district.state}`,
-    medicine: { id: medicine.id, name: medicine.name, strength: medicine.strength, unit: medicine.unit, leadTimeDays: medicine.leadTimeDays, safetyBufferDays: medicine.safetyBufferDays, reserveDays: medicine.reserveDays },
+    medicine: { ...(engineFacts.medicine as object | undefined), id: medicine.id, name: medicine.name, strength: medicine.strength, unit: medicine.unit, leadTimeDays: medicine.leadTimeDays, safetyBufferDays: medicine.safetyBufferDays, reserveDays: medicine.reserveDays },
     target: {
+      ...(engineFacts.target as object | undefined),
       facilityId: facility.id,
       name: facility.name,
       type: facility.type,
@@ -152,7 +141,7 @@ export function buildDecisionFacts(state: DistrictState, facilityId: string, med
       reportAgeHours: ageHours,
       verified: rec.verified,
       recountRequested: !!rec.recountRequested,
-      reportFlag: reportFlag(rec, ageHours),
+      reportFlag: reportFlag(rec, state.now),
       inboundUnits: inbound(state, facilityId, medicineId),
       nearExpiryUnits: rec.nearExpiry?.quantity ?? 0,
       weeklyDispensedTrend: (rec.history ?? []).slice(-6).map((p) => p.dispensed),
