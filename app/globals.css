@@ -717,3 +717,6 @@ a.toast__title:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* Activity ledger: kind cell */
 .ledger__kind { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .ledger__kind .feed__dot { margin-top: 0; }
+
+/* Shell footer: the synthetic-data notice is always visible somewhere on the page. */
+.app__foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 24px; margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--line); font-size: var(--t-xs); color: var(--muted); }

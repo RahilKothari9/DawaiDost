@@ -30,6 +30,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <TopBar />
                   <main id="main" className="app__content" tabIndex={-1}>
                     {children}
+                    <footer className="app__foot">
+                      <span>Synthetic scenario. Every clinic, person and count here is fictional.</span>
+                      <span>Approvals change this dashboard only; nothing is dispatched or ordered.</span>
+                    </footer>
                   </main>
                 </div>
               </div>

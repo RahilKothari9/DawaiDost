@@ -14,11 +14,11 @@ import { DecisionMark } from "./parts";
 type Snapshot = { timeline: Set<string>; decisions: Set<string>; transfers: Set<string>; skipVoice: boolean };
 
 const STEPS = [
-  { key: "voice", name: "Voice check", by: "Pharmacist · Realtime API" },
-  { key: "forecast", name: "Forecast", by: "Deterministic code" },
-  { key: "decide", name: "Decide", by: "OpenAI Decisions API", ai: true },
-  { key: "approve", name: "Approve", by: "District officer" },
-  { key: "move", name: "Move medicine", by: "Transfer on the road" },
+  { key: "voice", name: "Voice check", by: "Realtime API" },
+  { key: "forecast", name: "Forecast", by: "Code" },
+  { key: "decide", name: "Decide", by: "Decisions API", ai: true },
+  { key: "approve", name: "Approve", by: "You" },
+  { key: "move", name: "Deliver", by: "Transfer" },
 ] as const;
 
 /** The Saraswati metformin case, walked through the whole loop. All progress is derived from district state. */
@@ -32,7 +32,11 @@ export function StoryCard() {
   const rec = target && medicine ? getRecord(target.id, medicine.id) : undefined;
   const donor = useMemo(() => {
     if (!medicine || !target) return undefined;
-    const best = assessments.filter((x) => x.medicineId === medicine.id && x.facilityId !== target.id && x.transferable > 0).sort((x, y) => y.transferable - x.transferable)[0];
+    // Peer clinics only: the district store resupplies on its own lead time, it is not a lateral donor.
+    const peer = new Set(state.facilities.filter((f) => f.type === "PHC" || f.type === "CHC").map((f) => f.id));
+    const best = assessments
+      .filter((x) => x.medicineId === medicine.id && x.facilityId !== target.id && x.transferable > 0 && peer.has(x.facilityId))
+      .sort((x, y) => y.transferable - x.transferable)[0];
     return best ? { ...best, name: state.facilities.find((f) => f.id === best.facilityId)?.name ?? best.facilityId } : undefined;
   }, [assessments, medicine, target, state.facilities]);
 

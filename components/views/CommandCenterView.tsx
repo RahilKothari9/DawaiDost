@@ -28,7 +28,9 @@ export function CommandCenterView() {
     <div className="view">
       <header className="cc-head">
         <h1 className="cc-head__title">
-          {n === 0 ? "Every clinic is covered until resupply arrives." : `${word} ${n === 1 ? "clinic runs" : "clinics run"} out before resupply can reach ${n === 1 ? "it" : "them"}.`}
+          {n === 0
+            ? "Every clinic is covered until resupply arrives."
+            : `${word} ${n === 1 ? "clinic" : "clinics"} will run out of a medicine before resupply can reach ${n === 1 ? "it" : "them"}.`}
         </h1>
         <div className="cc-head__meta">
           <span>
