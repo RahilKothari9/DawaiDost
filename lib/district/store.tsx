@@ -64,6 +64,15 @@ function addToCurrentWeek(r: StockRecord, field: "dispensed" | "received", qty: 
   return { ...r, history: h };
 }
 
+/** A transfer in or out: net receipt for the week, and the last known count moves with it so the ledger stays consistent. */
+function shiftCurrentWeek(r: StockRecord, qty: number): StockRecord {
+  if (!r.history.length || !qty) return r;
+  const h = [...r.history];
+  const last = h[h.length - 1];
+  h[h.length - 1] = { ...last, received: (last.received ?? 0) + qty, closingStock: Math.max(0, last.closingStock + qty) };
+  return { ...r, history: h };
+}
+
 function recordVoiceReport(state: DistrictState, report: VoiceReport, actor?: string): DistrictState {
   const existing = state.stock.find((r) => r.facilityId === report.facilityId && r.medicineId === report.medicineId);
   if (!existing) return state;
@@ -105,8 +114,8 @@ function deliver(state: DistrictState, t: Transfer, at: string): DistrictState {
   const donor = state.stock.find((r) => r.facilityId === t.fromId && r.medicineId === t.medicineId);
   const moved = Math.min(t.quantity, donor ? donor.stock : t.quantity);
   let next = state;
-  if (donor) next = updateRecord(next, t.fromId, t.medicineId, (r) => addToCurrentWeek(rollWeeks({ ...r, stock: r.stock - moved }, at), "received", -moved));
-  next = updateRecord(next, t.toId, t.medicineId, (r) => addToCurrentWeek(rollWeeks({ ...r, stock: r.stock + moved }, at), "received", moved));
+  if (donor) next = updateRecord(next, t.fromId, t.medicineId, (r) => shiftCurrentWeek(rollWeeks({ ...r, stock: r.stock - moved }, at), -moved));
+  next = updateRecord(next, t.toId, t.medicineId, (r) => shiftCurrentWeek(rollWeeks({ ...r, stock: r.stock + moved }, at), moved));
   return next;
 }
 
@@ -168,39 +177,49 @@ function setDecisionStatus(state: DistrictState, decisionId: string, status: Dec
   return withEvents(next, events);
 }
 
-/** Consumes stock, rolls weekly history, progresses approved → in_transit → delivered by ETA, and raises new alerts. */
-function advanceClock(state: DistrictState, hours: number): DistrictState {
-  if (!(hours > 0)) return state;
-  const t0 = ms(state.now), t1 = t0 + hours * HOUR;
-  const nowIso = isoAt(t1);
-  const before = new Map(assessDistrict(state).map((a) => [`${a.facilityId}|${a.medicineId}`, a.risk]));
+function consume(state: DistrictState, t0: number, t1: number): DistrictState {
+  if (t1 <= t0) return state;
+  const at = isoAt(t1);
   // Integer consumption anchored to the epoch so repeated small steps never drift.
-  let next: DistrictState = {
+  return {
     ...state,
+    now: at,
     stock: state.stock.map((r) => {
       const used = Math.floor((r.dailyUse * t1) / DAY) - Math.floor((r.dailyUse * t0) / DAY);
       const consumed = Math.min(r.stock, Math.max(0, used));
-      const rolled = rollWeeks(r, nowIso);
-      return addToCurrentWeek({ ...rolled, stock: r.stock - consumed }, "dispensed", consumed);
+      return addToCurrentWeek({ ...rollWeeks(r, at), stock: r.stock - consumed }, "dispensed", consumed);
     }),
   };
-  // Transfer progression in chronological order.
-  type Step = { at: number; id: string; status: TransferStatus };
-  const steps: Step[] = [];
-  for (const t of next.transfers) {
-    if (t.status === "approved") {
-      const dispatch = ms(t.approvedAt ?? t.updatedAt) + DISPATCH_DELAY_HOURS * HOUR;
-      if (dispatch <= t1) steps.push({ at: Math.max(dispatch, t0), id: t.id, status: "in_transit" });
-      const arrive = Math.max(dispatch, t0) + t.etaHours * HOUR;
-      if (arrive <= t1) steps.push({ at: arrive, id: t.id, status: "delivered" });
-    } else if (t.status === "in_transit") {
-      const arrive = ms(t.dispatchedAt ?? t.updatedAt) + t.etaHours * HOUR;
-      if (arrive <= t1) steps.push({ at: Math.max(arrive, t0), id: t.id, status: "delivered" });
-    }
+}
+
+/** Next transfer transition due at or before t1, if any. */
+function nextTransferStep(state: DistrictState, t0: number, t1: number): { at: number; id: string; status: TransferStatus } | null {
+  let best: { at: number; id: string; status: TransferStatus } | null = null;
+  for (const t of state.transfers) {
+    let step: { at: number; id: string; status: TransferStatus } | null = null;
+    if (t.status === "approved") step = { at: Math.max(t0, ms(t.approvedAt ?? t.updatedAt) + DISPATCH_DELAY_HOURS * HOUR), id: t.id, status: "in_transit" };
+    else if (t.status === "in_transit") step = { at: Math.max(t0, ms(t.dispatchedAt ?? t.updatedAt) + t.etaHours * HOUR), id: t.id, status: "delivered" };
+    if (step && step.at <= t1 && (!best || step.at < best.at)) best = step;
   }
-  steps.sort((a, b) => a.at - b.at);
-  next = { ...next, now: nowIso };
-  for (const s of steps) next = setTransferStatus(next, s.id, s.status, isoAt(s.at));
+  return best;
+}
+
+/** Consumes stock, rolls weekly history, progresses approved → in_transit → delivered by ETA (in time order), and raises new alerts. */
+function advanceClock(state: DistrictState, hours: number): DistrictState {
+  if (!(hours > 0)) return state;
+  const t1 = ms(state.now) + hours * HOUR;
+  const nowIso = isoAt(t1);
+  const before = new Map(assessDistrict(state).map((a) => [`${a.facilityId}|${a.medicineId}`, a.risk]));
+  let next = state;
+  let t = ms(state.now);
+  for (let guard = 0; guard < 1000; guard++) {
+    const step = nextTransferStep(next, t, t1);
+    if (!step) break;
+    next = consume(next, t, step.at);
+    t = Math.max(t, step.at);
+    next = setTransferStatus({ ...next, now: isoAt(t) }, step.id, step.status, isoAt(t));
+  }
+  next = { ...consume(next, t, t1), now: nowIso };
   // New alerts for records that crossed into stockout/critical.
   const types = new Map(next.facilities.map((f: Facility) => [f.id, f.type]));
   const alerts: Draft[] = [];
