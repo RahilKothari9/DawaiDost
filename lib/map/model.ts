@@ -56,6 +56,7 @@ export type MapFlow = {
   arc: Arc;
   mid: LngLat;
   primary: boolean; // belongs to the selected medicine
+  medicineLabel: string;
 };
 
 export type MapSpoke = { id: string; fromId: string; toId: string; coords: LngLat[] };
@@ -119,7 +120,7 @@ export function buildMapModel(state: DistrictState, assessments: StockAssessment
   const phcPops = state.facilities.filter((f) => f.type === "PHC").map((f) => f.catchmentPopulation);
   const rScale = scaleSqrt()
     .domain([Math.min(...phcPops, 10000), Math.max(...phcPops, 40000)])
-    .range([6.5, 13])
+    .range([7, 13.5])
     .clamp(true);
   const typeRadius: Record<FacilityType, number> = { WAREHOUSE: 13, DH: 12, CHC: 10, PHC: 0 };
 
@@ -155,6 +156,7 @@ export function buildMapModel(state: DistrictState, assessments: StockAssessment
   const facilityById = new Map(facilities.map((f) => [f.id, f]));
 
   const flows: MapFlow[] = [];
+  const medLabel = new Map(state.medicines.map((m) => [m.id, m.shortName ?? m.name]));
   const mkFlow = (
     id: string,
     status: FlowStatus,
@@ -175,6 +177,7 @@ export function buildMapModel(state: DistrictState, assessments: StockAssessment
       id, status, medicineId, fromId, toId, fromName: from.name, toName: to.name, quantity, etaHours,
       distanceKm: distanceKm || haversineKm({ lat: from.lngLat[1], lng: from.lngLat[0] }, { lat: to.lngLat[1], lng: to.lngLat[0] }),
       departMs, updatedMs, arc, mid: pointOnArc(arc, 0.5), primary: medicineId === medId,
+      medicineLabel: medLabel.get(medicineId) ?? medicineId,
     });
   };
 
@@ -232,7 +235,7 @@ export function buildMapModel(state: DistrictState, assessments: StockAssessment
   }
 
   const pts = facilities.map((f) => f.lngLat);
-  const outline = districtOutline(pts);
+  const outline = districtOutline(pts, 7);
   const coverageCells = coverage
     ? coverageGrid(
         facilities

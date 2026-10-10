@@ -18,6 +18,7 @@
 
 .stage { position: absolute; inset: 0; z-index: 0; }
 .glCanvas { position: absolute; inset: 0; }
+.glContainer { width: 100%; height: 100%; }
 .glCanvas :global(.maplibregl-canvas) { outline: none; }
 .glCanvas :global(.maplibregl-ctrl-attrib) {
   background: color-mix(in srgb, var(--surface) 80%, transparent);
@@ -61,7 +62,7 @@
   z-index: 2;
   top: var(--gap);
   left: var(--gap);
-  max-width: min(440px, calc(100% - 2 * var(--gap)));
+  max-width: min(360px, calc(100% - 2 * var(--gap)));
   padding: 12px 14px 12px;
   background: var(--panel-bg);
   backdrop-filter: blur(10px) saturate(1.2);
@@ -79,6 +80,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
+  white-space: nowrap;
 }
 .compact .eyebrow { display: none; }
 .synthetic {
@@ -100,7 +102,7 @@
   background: transparent
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23736f64' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
     no-repeat right 4px center;
-  font: 400 28px/1.1 var(--font-display);
+  font: 400 26px/1.1 var(--font-display);
   color: var(--ink);
   cursor: pointer;
   text-overflow: ellipsis;
@@ -421,6 +423,7 @@
 /* ---------- map labels (MapLibre markers + SVG overlay) ---------- */
 .abs { position: absolute; z-index: 1; transform: translate(-50%, -50%); }
 .absTop { position: absolute; z-index: 1; transform: translate(-50%, 0); }
+.absLeft { position: absolute; z-index: 1; transform: translate(0, -50%); }
 
 .flowPill {
   display: inline-flex;
@@ -544,4 +547,9 @@
   .svgFlow_in_transit, .svgHalo, .svgConsGlow, .leg_in_transit line, .flowPill i, .loading { animation: none; }
   .svgHalo { opacity: 0.4; transform: scale(1.5); }
   .tooltip, .flowCard { animation: none; }
+}
+
+.pillSecondary { opacity: 0.78; transform: scale(0.92); }
+.pillSecondary.pill_in_transit, .pillSecondary.pill_approved {
+  background: color-mix(in srgb, var(--accent) 78%, var(--surface));
 }

@@ -12,7 +12,7 @@ import { buildIcons, hubIconId, type HubType } from "@/lib/map/icons";
 import { flowProgress, type MapFlow, type MapModel } from "@/lib/map/model";
 import { coverageStops, type MapPalette } from "@/lib/map/palette";
 import type { LayerVisibility } from "./layers";
-import { flowLabelText, facilityLabelVisible } from "./labels";
+import { escapeHtml, flowLabelText, facilityLabelVisible } from "./labels";
 import styles from "./DistrictMap.module.css";
 
 type Pt = { x: number; y: number };
@@ -91,7 +91,7 @@ function signedArea(ring: LngLat[]): number {
 
 function radiusExpr(extra: number | Expr = 0, scale = 1): Expr {
   const r = ["*", ["get", "r"], scale];
-  return ["interpolate", ["linear"], ["zoom"], 7, ["+", ["*", r, 0.72], extra], 10, ["+", r, extra], 13, ["+", ["*", r, 1.55], extra]];
+  return ["interpolate", ["linear"], ["zoom"], 7, ["+", ["*", r, 0.8], extra], 10, ["+", ["*", r, 1.1], extra], 13, ["+", ["*", r, 1.6], extra]];
 }
 
 function riskColorExpr(p: MapPalette): Expr {
@@ -108,13 +108,13 @@ function installLayers(map: MLMap, p: MapPalette) {
   const add = (layer: Expr) => map.addLayer(layer);
   const stops = coverageStops(p).flatMap(([v, c]) => [v, c]);
 
-  add({ id: "dd-mask", type: "fill", source: "dd-mask", paint: { "fill-color": p.bg, "fill-opacity": 0.62 } });
   add({ id: "dd-coverage", type: "fill", source: "dd-coverage", paint: { "fill-color": ["interpolate", ["linear"], ["get", "v"], ...stops], "fill-opacity": 0.3, "fill-antialias": false } });
+  add({ id: "dd-mask", type: "fill", source: "dd-mask", paint: { "fill-color": p.bg, "fill-opacity": 0.72 } });
   add({ id: "dd-outline-glow", type: "line", source: "dd-outline", paint: { "line-color": p.ink, "line-opacity": 0.05, "line-width": 10, "line-blur": 6 } });
   add({ id: "dd-outline", type: "line", source: "dd-outline", paint: { "line-color": p.ink2, "line-opacity": 0.45, "line-width": 1.2, "line-dasharray": [4, 2.5] } });
   add({ id: "dd-spokes", type: "line", source: "dd-spokes", layout: { "line-cap": "round" }, paint: { "line-color": p.ink2, "line-opacity": 0.38, "line-width": 1, "line-dasharray": [0.6, 2.4] } });
 
-  const dimOpacity = (base: number): Expr => ["*", base, ["case", ["get", "dim"], 0.28, ["get", "primary"], 1, 0.45]];
+  const dimOpacity = (base: number): Expr => ["*", base, ["case", ["get", "dim"], 0.28, ["get", "primary"], 1, 0.62]];
   add({ id: "dd-flow-hl", type: "line", source: "dd-flows", filter: ["all", ["get", "hl"], ["!=", ["get", "status"], "opportunity"]], layout: { "line-cap": "round" }, paint: { "line-color": p.accent, "line-opacity": 0.2, "line-width": 12, "line-blur": 4 } });
   add({ id: "dd-flow-opportunity", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "opportunity"], layout: { "line-cap": "round" }, paint: { "line-color": p.risk.surplus, "line-opacity": ["case", ["get", "hl"], 0.95, dimOpacity(0.6)], "line-width": ["case", ["get", "hl"], 2.4, 1.6], "line-dasharray": [0.5, 2] } });
   add({ id: "dd-flow-delivered", type: "line", source: "dd-flows", filter: ["==", ["get", "status"], "delivered"], layout: { "line-cap": "round" }, paint: { "line-color": p.risk.ok, "line-opacity": dimOpacity(0.42), "line-width": 1.8 } });
@@ -163,7 +163,7 @@ function installLayers(map: MLMap, p: MapPalette) {
     filter: ["!=", ["get", "type"], "PHC"],
     layout: {
       "icon-image": ["get", "icon"],
-      "icon-size": ["interpolate", ["linear"], ["zoom"], 7, 0.78, 10, 1, 13, 1.35],
+      "icon-size": ["interpolate", ["linear"], ["zoom"], 7, 0.85, 10, 1.08, 13, 1.4],
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
     },
@@ -236,6 +236,13 @@ class GlEngine {
     const [ml, basemap] = await Promise.all([import("maplibre-gl"), loadBasemap(p, this.abort.signal)]);
     if (this.disposed) return;
     this.ml = ml;
+    try {
+      // Bundlers rewrite chunk URLs, so point MapLibre at its worker explicitly.
+      const workerUrl = new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url);
+      ml.setWorkerUrl(workerUrl.href);
+    } catch {
+      // keep MapLibre's default resolution
+    }
     const { model, padding } = this.props;
     let map: MLMap;
     try {
@@ -487,21 +494,21 @@ class GlEngine {
     const ml = this.ml;
     if (!ml) return;
     const { model, layers, selectedFacilityId: selFac, variant, unitShort } = this.props;
-    const want = new Map<string, { at: LngLat; text: string; cls: string; anchor: "center" | "top"; offset: [number, number]; flowId?: string; facId?: string }>();
+    const want = new Map<string, { at: LngLat; text: string; cls: string; anchor: "center" | "top" | "left"; offset: [number, number]; flowId?: string; facId?: string }>();
 
     if (layers.transfers) {
       for (const f of model.flows) {
-        if (!f.primary) continue;
         if (f.status === "opportunity" && (!layers.opportunities || variant === "compact")) continue;
         if (variant === "compact" && f.status === "delivered") continue;
-        const cls = [styles.flowPill, styles[`pill_${f.status}`], focusId && focusId !== f.id ? styles.pillDim : "", focusId === f.id ? styles.pillFocus : ""].join(" ");
+        const cls = [styles.flowPill, styles[`pill_${f.status}`], f.primary ? "" : styles.pillSecondary, focusId && focusId !== f.id ? styles.pillDim : "", focusId === f.id ? styles.pillFocus : ""].join(" ");
         want.set(`flow:${f.id}`, { at: f.mid, text: flowLabelText(f, unitShort), cls, anchor: "center", offset: [0, 0], flowId: f.id });
       }
     }
     for (const f of model.facilities) {
       if (!facilityLabelVisible(f, selFac, variant)) continue;
       const cls = [styles.facLabel, f.id === selFac ? styles.facLabelSel : "", f.risk ? styles[`facLabel_${f.risk}`] : ""].join(" ");
-      want.set(`fac:${f.id}`, { at: f.lngLat, text: f.name, cls, anchor: "top", offset: [0, f.radius + 8], facId: f.id });
+      const side = f.type === "WAREHOUSE" && f.id !== selFac;
+      want.set(`fac:${f.id}`, { at: f.lngLat, text: escapeHtml(f.name), cls, anchor: side ? "left" : "top", offset: side ? [f.radius + 8, 0] : [0, f.radius + 8], facId: f.id });
     }
 
     const have = this.markers;
@@ -593,7 +600,11 @@ export function MapLibreCanvas(props: MapLibreCanvasProps) {
     engineRef.current?.update(props);
   });
 
-  return <div ref={containerRef} className={styles.glCanvas} aria-hidden="true" />;
+  return (
+    <div className={styles.glCanvas} aria-hidden="true">
+      <div ref={containerRef} className={styles.glContainer} />
+    </div>
+  );
 }
 
 

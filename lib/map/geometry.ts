@@ -145,7 +145,7 @@ export type CoverageCell = { ring: LngLat[]; center: LngLat; value: number };
  * Inverse-distance-weighted surface of a value (days of stock) on a square grid,
  * clipped to `clip`. `weight` lets bigger catchments pull harder.
  */
-export function coverageGrid(samples: CoverageSample[], clip: LngLat[], cols = 56): CoverageCell[] {
+export function coverageGrid(samples: CoverageSample[], clip: LngLat[], cols = 96): CoverageCell[] {
   if (samples.length === 0 || clip.length < 4) return [];
   const [minX, minY, maxX, maxY] = bbox(clip);
   const cLat = (minY + maxY) / 2;

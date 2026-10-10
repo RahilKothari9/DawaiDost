@@ -8,8 +8,8 @@ export type LayerVisibility = {
 };
 
 export const DEFAULT_LAYERS: Record<"full" | "compact", LayerVisibility> = {
-  full: { transfers: true, opportunities: true, spokes: false, coverage: true, allMedicines: false },
-  compact: { transfers: true, opportunities: false, spokes: false, coverage: false, allMedicines: false },
+  full: { transfers: true, opportunities: true, spokes: false, coverage: true, allMedicines: true },
+  compact: { transfers: true, opportunities: false, spokes: false, coverage: false, allMedicines: true },
 };
 
 export const LAYER_META: { key: keyof LayerVisibility; label: string; hint: string }[] = [

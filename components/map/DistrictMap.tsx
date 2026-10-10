@@ -32,7 +32,7 @@ export type DistrictMapProps = {
 };
 
 const WEEK_HOURS = 168;
-const STEP_HOURS = 4;
+const STEP_HOURS = 2;
 
 const noopSubscribe = () => () => {};
 function subscribeReducedMotion(cb: () => void) {
@@ -111,7 +111,7 @@ export function DistrictMap({
         const hours = s.hours + STEP_HOURS;
         return hours >= WEEK_HOURS ? { playing: false, hours: WEEK_HOURS } : { playing: true, hours };
       });
-    }, reduced ? 650 : 420);
+    }, reduced ? 600 : 300);
     return () => clearInterval(id);
   }, [play.playing, dispatch, reduced]);
 
@@ -164,7 +164,7 @@ export function DistrictMap({
   const padding = useMemo(() => {
     if (compact) return { top: 64, bottom: 56, left: 24, right: 24 };
     const wide = width > 940;
-    return { top: 120, bottom: 96, left: wide ? 60 : 24, right: wide ? 270 : 24 };
+    return { top: 96, bottom: 84, left: wide ? 40 : 24, right: wide ? 250 : 24 };
   }, [compact, width]);
 
   const useSvg = renderer === "svg" || !!glFailed;
@@ -209,7 +209,7 @@ export function DistrictMap({
       {/* ---- header: medicine + headline numbers ---- */}
       <div className={styles.header}>
         <div className={styles.eyebrow}>
-          {state.district.name} district · {state.district.state}
+          {state.district.name} district
           <span className={styles.synthetic}>synthetic network</span>
         </div>
         <label className={styles.medPicker}>
@@ -220,7 +220,7 @@ export function DistrictMap({
               return (
                 <option key={m.id} value={m.id}>
                   {m.name} {m.strength}
-                  {n ? ` — ${n} at risk` : ""}
+                  {n && m.id !== state.selectedMedicineId ? ` (${n} at risk)` : ""}
                 </option>
               );
             })}
@@ -369,7 +369,7 @@ export function DistrictMap({
           role="tooltip"
         >
           {hover.kind === "facility" ? (
-            <FacilityTip id={hover.id} model={model} unit={medicine?.unit ?? "units"} medicineName={medicine ? `${medicine.name} ${medicine.strength}` : ""} />
+            <FacilityTip id={hover.id} model={model} unit={unitShort} medicineName={medicine ? `${medicine.name} ${medicine.strength}` : ""} />
           ) : (
             <FlowTip flow={model.flows.find((f) => f.id === hover.id)} nowMs={nowMs} unit={unitShort} />
           )}

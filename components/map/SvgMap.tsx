@@ -248,10 +248,10 @@ export function SvgMap(props: SvgMapProps) {
 
       {/* HTML labels, same classes as the MapLibre markers */}
       {visibleFlows
-        .filter((f) => f.primary && !(variant === "compact" && (f.status === "opportunity" || f.status === "delivered")))
+        .filter((f) => !(variant === "compact" && (f.status === "opportunity" || f.status === "delivered")))
         .map((f) => {
           const [x, y] = project(f.mid);
-          const cls = [styles.flowPill, styles[`pill_${f.status}`], focus && focus.id !== f.id ? styles.pillDim : "", focus?.id === f.id ? styles.pillFocus : ""].join(" ");
+          const cls = [styles.flowPill, styles[`pill_${f.status}`], f.primary ? "" : styles.pillSecondary, focus && focus.id !== f.id ? styles.pillDim : "", focus?.id === f.id ? styles.pillFocus : ""].join(" ");
           return (
             <div
               key={`pill-${f.id}`}
@@ -268,7 +268,10 @@ export function SvgMap(props: SvgMapProps) {
           const [x, y] = project(f.lngLat);
           const cls = [styles.facLabel, f.id === selFac ? styles.facLabelSel : "", f.risk ? styles[`facLabel_${f.risk}`] : ""].join(" ");
           return (
-            <div key={`lbl-${f.id}`} className={`${styles.absTop} ${cls}`} style={{ left: x, top: y + f.radius + 8 }} onClick={() => props.onClickFacility(f.id)}>
+            <div
+              key={`lbl-${f.id}`}
+              className={`${f.type === "WAREHOUSE" && f.id !== selFac ? styles.absLeft : styles.absTop} ${cls}`}
+              style={f.type === "WAREHOUSE" && f.id !== selFac ? { left: x + f.radius + 8, top: y } : { left: x, top: y + f.radius + 8 }} onClick={() => props.onClickFacility(f.id)}>
               {f.name}
             </div>
           );
