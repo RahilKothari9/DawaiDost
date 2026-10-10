@@ -32,7 +32,13 @@ The agent follows a fixed flow, in Hindi, with each turn under two short sentenc
 4. If not plausible, ask for a recount of that shelf. The agent **never reveals the expected number**, so it cannot lead the answer. If the pharmacist repeats the same number, the agent accepts it with `pharmacist_insisted: true`.
 5. After the last medicine, thank the pharmacist and call **`end_call`** with a one-line English summary.
 
-The expected range ([`lib/voice/facts.ts`](../../lib/voice/facts.ts)) is the last count minus daily use since that report, with a tolerance of the largest of: 5 units, 3 days of use, 35% of the expected count, or the recent weekly swing in dispensing.
+The expected range ([`lib/voice/facts.ts`](../../lib/voice/facts.ts)) uses the same ledger rule as the store's count check, so the agent and the store agree:
+
+```text
+expected  = last week's closing stock + units received this week − daily use × days since the week began
+tolerance = max(3, daily use × 3.5, expected × 0.25)
+plausible = expected − 1.5 × tolerance  ≤  count  ≤  expected + tolerance
+```
 
 The rule shared by every mode: **the voice model never invents quantities.** Counts come only from what the pharmacist says.
 

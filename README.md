@@ -266,7 +266,7 @@ This is a hackathon prototype. **All facility data is synthetic.** The block nam
 | OpenAI platform | [Overview](docs/openai/overview.md) · [Decisions API](docs/openai/decisions-api.md) · [Decision evals](docs/openai/evals.md) · [Responses API](docs/openai/responses-api.md) · [Realtime API](docs/openai/realtime-api.md) · [Audio](docs/openai/audio.md) · [Prompt and choice design](docs/openai/prompt-design.md) |
 | Research | [Problem landscape](docs/research/problem-landscape.md) · [Prior art](docs/research/prior-art.md) · [Why this problem](docs/research/why-this-problem.md) · [Users](docs/research/users.md) |
 | Architecture | [System overview](docs/architecture/overview.md) · [District model and state](docs/architecture/district-model.md) · [Stock calculations](docs/architecture/stock-math.md) · [Reliability and safety](docs/architecture/reliability-and-safety.md) · [Testing](docs/architecture/testing.md) |
-| Product | [Demo walkthrough](docs/product/demo-walkthrough.md) · [Roadmap](docs/product/roadmap.md) · [Impact and pilot design](docs/product/impact-and-pilot.md) |
+| Product | [Features](docs/product/features.md) · [Demo walkthrough](docs/product/demo-walkthrough.md) · [Roadmap](docs/product/roadmap.md) · [Impact and pilot design](docs/product/impact-and-pilot.md) |
 
 ## References
 

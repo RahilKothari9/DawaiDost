@@ -119,13 +119,15 @@ The deterministic fallback needs no API key, so we can measure it now. On the 50
 | Ambiguous cases | 100% (10 of 10) |
 | Macro F1 | 0.88 |
 
-The rules are perfect on clear transfers, reserve-blocked donors, small surplus, district shortages, near-expiry donors, and partial cover. They miss **all 3 unverified-donor cases**, 1 of 3 zero-consumption cases, and 1 of 8 suspicious-count cases. These are the cases where judgment across several signals matters most, and where the Decisions API must do better to justify its place.
+The rules miss 5 cases. In V05, the recorded daily use contradicts the weekly dispensing trend, and the rules do not see it. In Z01, U01, U02, and U03, the only surplus is at a donor with an unverified count, and the rules move stock from that donor anyway. These are the cases where judgment across several signals matters most, and where the Decisions API must do better to justify its place.
 
 The rules' probabilities are fixed templates, so calibration metrics for the baseline are not meaningful.
 
 ### Decisions API (live)
 
-No live results file is committed yet. We will publish the numbers here only after a real run. We do not report accuracy that we have not measured.
+No live results file is committed yet. Every live attempt on 2026-10-10 returned `HTTP 429 credit_balance_exhausted` for the project key. We will publish the numbers here only after a real run. We do not report accuracy that we have not measured.
+
+The method notes and status are also in [`data/evals/README.md`](../../data/evals/README.md).
 
 ## Tests
 

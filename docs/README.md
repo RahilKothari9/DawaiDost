@@ -41,6 +41,7 @@ Dawai Dost is built on the OpenAI platform. These documents explain how each API
 
 | Document | Content |
 | --- | --- |
+| [Features](product/features.md) | Every view: what it shows, who uses it, and why it matters |
 | [Demo walkthrough](product/demo-walkthrough.md) | A step-by-step script for the judging demo |
-| [Roadmap](product/roadmap.md) | The path from prototype to a district pilot |
+| [Roadmap](product/roadmap.md) | What is already built, and the path from prototype to a district pilot |
 | [Impact and pilot design](product/impact-and-pilot.md) | How we will measure the effect of Dawai Dost in the field |
