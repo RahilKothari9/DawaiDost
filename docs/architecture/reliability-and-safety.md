@@ -36,7 +36,7 @@ The district route always returns a usable result. The `source` field tells the 
 
 The fallback uses the engine rules: verify a doubtful count, transfer when a donor covers most of the gap, escalate when upstream supply is delayed or the warehouse is short, otherwise draft an indent. Its record has `engine: "rules"` and a `ruleTrace` that lists which rules fired. Its probabilities are fixed templates. The interface labels it **Rules fallback**.
 
-The eval set measures this fallback too. It is right on 45 of 50 labeled cases. See [Decision evals](../openai/evals.md).
+The eval set measures this fallback too. On the current code it chooses an acceptable action on all 50 labeled cases. The rules were tuned on this set, so this is a consistency check, not an independent benchmark. See [Decision evals](../openai/evals.md).
 
 ## Fallbacks for other features
 

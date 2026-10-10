@@ -43,6 +43,7 @@ The runner can send each case in three ways. This shows how much the product's q
 | `product` | Exactly what `/api/decisions/district` sends: `next_action` plus the urgency, recount, indent-timing, and donor questions in one call |
 | `action_only` | The product instructions and choice descriptions, but `next_action` is the only question |
 | `minimal` | A one-line instruction ("Choose the next action for the target facility.") and bare choice labels, with the same snapshot |
+| `policy` (Explicit criteria) | The product choices, with the decision criteria spelled out as ordered checks. A candidate prompt. It mirrors the labeling policy. |
 
 ## Baseline
 
@@ -107,27 +108,38 @@ A smaller balanced subset of 10 cases (`T01`, `N01`, `R01`, `S02`, `V01`, `V05`,
 
 ## Results
 
-### Rules baseline (measured)
+All numbers below are measured. They come from the committed run [`data/evals/results-2026-10-10.json`](../../data/evals/results-2026-10-10.json) (run `eval-20261010070726`, 200 live calls). The method and full discussion are in [`data/evals/README.md`](../../data/evals/README.md).
 
-The deterministic fallback needs no API key, so we can measure it now. On the 50 cases, at the current commit:
+Only `gpt-6-luna` is enabled on `/v1/decisions` for the project key. The other models returned `404 model_not_found`. So this run compares **prompt variants on one model**, against the rules baseline.
 
-| Metric | Value |
-| --- | ---: |
-| Accuracy (with accepted alternatives) | 90% (45 of 50) |
-| Strict accuracy | 86% |
-| Unambiguous cases | 87.5% (35 of 40) |
-| Ambiguous cases | 100% (10 of 10) |
-| Macro F1 | 0.88 |
+| System | Accuracy (50) | Unambiguous (40) | Strict | Macro F1 | ECE | Brier | Latency p50 / p95 | Tokens per call |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `gpt-6-luna`, product call | 64.0% | 55.0% | 58.0% | 0.57 | 0.117 | 0.581 | 151 / 266 ms | 1528 |
+| `gpt-6-luna`, action only | 64.0% | 55.0% | 58.0% | 0.57 | 0.124 | 0.580 | 149 / 269 ms | 699 |
+| `gpt-6-luna`, minimal prompt | 62.0% | 52.5% | 56.0% | 0.51 | 0.107 | 0.595 | 148 / 222 ms | 550 |
+| `gpt-6-luna`, explicit criteria | **94.0%** | **92.5%** | 82.0% | 0.87 | 0.257 | 0.158 | 148 / 219 ms | 748 |
+| Rules (`fallbackDecision`) at run time | 98.0% | 97.5% | 94.0% | 0.95 | n/a | n/a | under 1 ms | 0 |
 
-The rules miss 5 cases. In V05, the recorded daily use contradicts the weekly dispensing trend, and the rules do not see it. In Z01, U01, U02, and U03, the only surplus is at a donor with an unverified count, and the rules move stock from that donor anyway. These are the cases where judgment across several signals matters most, and where the Decisions API must do better to justify its place.
+### What the evals found
 
-The rules' probabilities are fixed templates, so calibration metrics for the baseline are not meaningful.
+The evals did their job. They found a real weakness in the product prompt, and they showed how to fix it.
 
-### Decisions API (live)
+- **The product prompt over-recommends transfers.** It chose `transfer_surplus` on 35 of 50 cases, including cases where the donor surplus is real but too small to close the gap. Some of these wrong transfers had confidence of 0.75 or more.
+- **Stated criteria fix most of it.** The explicit criteria variant lists the checks in order (verify, then a full-cover transfer, then escalate, else indent). It raises accuracy from 64% to 94% on the same model and the same snapshots. This variant mirrors the labeling policy, so it shows that the model follows stated criteria well. It is not proof of independent judgment.
+- **The extra questions do not change the action.** The product call and the action-only call chose the same `next_action` on every case. The extra questions (urgency, recount, indent timing, donor) cost about 2.2 times the input tokens. They add signals for the officer, not accuracy for the action.
+- **Latency is low.** The median call took about 150 ms.
+- **Calibration.** The product prompt's ECE is 0.117. The explicit criteria variant is underconfident: its mean confidence is 68% against 94% accuracy (ECE 0.257).
+- **The rules win on this set, as expected.** The rules and the labels encode the same written policy. No case was right for the model and wrong for the rules.
 
-No live results file is committed yet. Every live attempt on 2026-10-10 returned `HTTP 429 credit_balance_exhausted` for the project key. We will publish the numbers here only after a real run. We do not report accuracy that we have not measured.
+### The rules baseline changed
 
-The method notes and status are also in [`data/evals/README.md`](../../data/evals/README.md).
+On the first pass, the rules scored 90% (45 of 50). They moved stock from donors with unverified counts (Z01, U01, U02, U03), and they missed a daily-use figure that contradicted the weekly trend (V05). The team then fixed `fallbackDecision` to ignore unverified or flagged donors and to verify when daily use contradicts the trend. The run above records 98%. Re-measured on the current code, the rules choose an acceptable action on all 50 cases (96% strict). Because the rules were tuned on this set, the rules baseline is not an independent benchmark.
+
+### What this means for the product
+
+- The Decisions API remains the decision engine, and the rules remain the labeled fallback.
+- The measured next step is to move the product instructions toward the explicit criteria, and then to test on new cases that were **not** used to tune either the prompt or the rules.
+- Decisions on cases outside the written policy, such as mixed signals that no rule covers, are where model judgment can add value. The current set does not yet measure that.
 
 ## Tests
 

@@ -67,7 +67,7 @@ Open **Escalations** (`/escalations`). Show the **Supply-gap board** with Amlodi
 
 Open **Decision evals** (`/evals`).
 
-> "Fifty labeled cases, a written labeling policy, and the product's own rules as a baseline. The rules get 90%. They fail where judgment matters, such as surplus held by a clinic whose count is not verified. That is where the Decisions API must earn its place, and we measure it."
+> "Fifty labeled cases, a written labeling policy, four prompt variants, and our own rules as a baseline. The evals caught a real problem: our first product prompt over-recommends transfers and scores 64%. With the decision criteria stated in order, the same model scores 94%. We show what we measured, including what is not good yet."
 
 With a working key, click **Run 10 cases live**.
 
