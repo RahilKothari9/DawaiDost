@@ -6,6 +6,7 @@
   position: relative;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   background: var(--bg);
@@ -81,6 +82,7 @@
 
 /* ---- content ---- */
 .content {
+  min-width: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 14px var(--ph-pad) 28px;
@@ -447,3 +449,9 @@ button.stockRow:active { background: var(--surface-2); }
 @media (max-width: 499px) {
   .switcherHint { display: inline-block; }
 }
+.keyGo { background: var(--ink); border-color: var(--ink); color: var(--surface); font: 700 18px/1.1 var(--ph-font); }
+.keyGo span { display: grid; justify-items: center; }
+.keyGo small { font-size: 11px; font-weight: 400; opacity: 0.75; }
+.keyGo:disabled { opacity: 0.35; cursor: not-allowed; }
+.taskKicker, .taskMeta { display: block; }
+.taskCta { display: flex; }

@@ -94,13 +94,10 @@ export function NumberEntry({ unitHi, unitEn, prompt, initial = null, max = 9999
         ))}
         <button type="button" className={s.key} onClick={backspace} aria-label="Delete last digit"><Delete aria-hidden /></button>
         <button type="button" className={s.key} onClick={() => press("0")}>0</button>
-        <button type="button" className={`${s.key}`} style={{ background: "var(--ink)", color: "var(--surface)" }} onClick={toReadback} disabled={value === null} aria-label="Next: read back">
-          <Check aria-hidden />
+        <button type="button" className={`${s.key} ${s.keyGo}`} onClick={toReadback} disabled={value === null} aria-label="Next: read back">
+          <span>आगे<small>Next</small></span>
         </button>
       </div>
-      <button type="button" className={`${s.btn} ${s.primary} ${s.block} ${s.big}`} onClick={toReadback} disabled={value === null}>
-        <span className={s.btnStack}>आगे<small>Next</small></span>
-      </button>
     </div>
   );
 }

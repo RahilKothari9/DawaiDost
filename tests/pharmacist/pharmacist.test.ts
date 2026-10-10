@@ -61,16 +61,16 @@ describe("pharmacist actions", () => {
   it("full receipt only delivers and logs", () => {
     const { state, t } = withTransfer(base(), { status: "in_transit", dispatchedAt: base().now });
     const actions = receiptActions(state, t, 45);
-    expect(actions.map((a) => a.type)).toEqual(["SET_TRANSFER_STATUS", "ADD_TIMELINE"]);
+    expect(actions.map((a) => a.type)).toEqual(["SET_TRANSFER_STATUS"]);
   });
 
   it("short receipt sets the shelf to what arrived, logs a discrepancy and asks the donor to recount", () => {
     const { state, t } = withTransfer(base(), { status: "in_transit", dispatchedAt: base().now });
     const actions = receiptActions(state, t, 40);
-    expect(actions.map((a) => a.type)).toEqual(["SET_TRANSFER_STATUS", "ADD_TIMELINE", "RECORD_VOICE_REPORT", "ADD_TIMELINE", "REQUEST_RECOUNT"]);
-    const report = actions[2];
+    expect(actions.map((a) => a.type)).toEqual(["SET_TRANSFER_STATUS", "RECORD_VOICE_REPORT", "ADD_TIMELINE", "REQUEST_RECOUNT"]);
+    const report = actions[1];
     expect(report.type === "RECORD_VOICE_REPORT" && report.report.count).toBe(16 + 40);
-    const recount = actions[4];
+    const recount = actions[3];
     expect(recount.type === "REQUEST_RECOUNT" && recount.facilityId).toBe("kalyanpur");
   });
 

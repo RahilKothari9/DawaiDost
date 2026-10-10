@@ -67,8 +67,8 @@ export function dispatchActions(state: DistrictState, t: Transfer): DistrictActi
         kind: "transfer_update",
         facilityId: t.toId,
         medicineId: t.medicineId,
-        title: `Dispatched: ${t.quantity} ${unitEn(m, t.quantity)} ${label} ${from.name} → ${to.name}`,
-        detail: `Packed and handed to the vehicle at ${from.name}.${left !== null ? ` ${from.name} keeps ${left} ${unitEn(m, left)}${days ? ` (${days} days)` : ""}.` : ""} ETA ${t.etaHours} h.`,
+        title: `Packed and handed to vehicle at ${from.name}: ${t.quantity} ${unitEn(m, t.quantity)} ${label} for ${to.name}`,
+        detail: `Confirmed by the pharmacist on the clinic phone.${left !== null ? ` ${from.name} keeps ${left} ${unitEn(m, left)}${days ? ` (${days} days)` : ""}.` : ""} ETA ${t.etaHours} h.`,
         actor: pharmacistActor(from),
       },
     },
@@ -84,26 +84,12 @@ export function receiptActions(state: DistrictState, t: Transfer, received: numb
   const { m, from, to, label } = lookup(state, t);
   if (!from || !to) return [];
   const actor = pharmacistActor(to);
+  // The reducer logs "Delivered" attributed to the recipient pharmacist; only a mismatch adds events here.
   const before = state.stock.find((r) => r.facilityId === t.toId && r.medicineId === t.medicineId)?.stock ?? 0;
   const diff = received - t.quantity;
   const u = (n: number) => unitEn(m, n);
   const actions: DistrictAction[] = [
     { type: "SET_TRANSFER_STATUS", transferId: t.id, status: "delivered" },
-    {
-      type: "ADD_TIMELINE",
-      event: {
-        id: `ph-receipt-${stamp(state)}-${t.id}`,
-        at: state.now,
-        kind: "transfer_update",
-        facilityId: t.toId,
-        medicineId: t.medicineId,
-        title: diff === 0
-          ? `Received in full: ${received} ${u(received)} ${label} at ${to.name}`
-          : `Received ${received} of ${t.quantity} ${u(t.quantity)} ${label} at ${to.name}`,
-        detail: `Counted on arrival by the pharmacist. Consignment from ${from.name}.`,
-        actor,
-      },
-    },
   ];
   if (diff !== 0) {
     const gap = Math.abs(diff);
