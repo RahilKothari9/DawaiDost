@@ -104,7 +104,42 @@ type RecordSpec = {
   nearExpiry?: StockRecord["nearExpiry"];
   verified?: boolean;
   overrideLastClosing?: number; // suspicious count: ledger-inconsistent report
+  healthyDays?: number; // typical days of cover before the recent trend
+  dryWeeks?: number; // trailing weeks with no receipt (missed resupply)
 };
+
+// Days-of-cover dip during the monsoon peak (demand outruns weekly top-ups).
+const MONSOON_STRESS: Record<string, number> = { "ors-sachet": 4.5, "paracetamol-500": 2.5, "amoxicillin-500": 1.5 };
+const TREND_WEEKS = 5;
+const DIP_PROBABILITY = 0.013;
+
+/**
+ * Smooth history: a staggered weekly-top-up pattern holding cover near `healthyDays`, a monsoon dip for seasonal meds,
+ * occasional one-week dips, then a TREND_WEEKS glide into today's cover. Receipts are derived so the ledger is exact.
+ */
+function trajectoryClosings(dispensed: number[], dailyUse: number, stock: number, medicine: Medicine, spec: RecordSpec, rand: () => number) {
+  const n = dispensed.length;
+  const thr = medicine.leadTimeDays + medicine.safetyBufferDays;
+  const dFinal = dailyUse > 0 ? stock / dailyUse : thr + 5;
+  const healthy = spec.healthyDays ?? Math.max(thr + 2.5 + rand() * 4, Math.min(dFinal, thr * 3));
+  const stress = MONSOON_STRESS[medicine.id] ?? 0;
+  const dry = spec.dryWeeks ?? (dFinal < thr ? 1 : 0);
+  const end = n - 1 - dry; // glide lands where the missed-resupply weeks begin
+  const dEnd = dFinal + 7 * dry;
+  const days = dispensed.map((_, t) => {
+    const base = healthy + (rand() - 0.5) * 2 - stress * Math.exp(-((t - 5) ** 2) / (2 * 1.6 ** 2));
+    const dipped = t < end - TREND_WEEKS && rand() < DIP_PROBABILITY ? Math.min(base, thr - 1 - rand() * 3) : base;
+    const k = Math.min(1, (t - (end - TREND_WEEKS)) / TREND_WEEKS);
+    return k > 0 ? dipped + (dEnd - dipped) * k ** 1.4 : dipped;
+  });
+  const closing = days.map((d, t) => Math.max(0, Math.round(d * (dispensed[t] / 7 || dailyUse))));
+  closing[n - 1] = stock;
+  for (let t = n - 1; t >= 1; t--) {
+    if (n - 1 - t < dry || closing[t - 1] > closing[t] + dispensed[t]) closing[t - 1] = closing[t] + dispensed[t];
+  }
+  const received = closing.map((c, t) => (t === 0 ? dispensed[0] : c - closing[t - 1] + dispensed[t]));
+  return { closing, received };
+}
 
 /** Builds a ledger-consistent weekly history ending at `stock`, then derives dailyUse from the last 4 weeks. */
 function buildRecord(facility: Facility, medicine: Medicine, spec: RecordSpec, rand: () => number, weeks: string[], reportAt: string, source: StockRecord["reportSource"]): StockRecord {
@@ -120,18 +155,22 @@ function buildRecord(facility: Facility, medicine: Medicine, spec: RecordSpec, r
   const dailyUse = spec.dailyUse ?? round1((dispensed[n - 1] + dispensed[n - 2] + dispensed[n - 3] + dispensed[n - 4]) / 28);
   const stock = spec.stock ?? Math.max(0, Math.round((spec.days ?? 12) * dailyUse));
   const weeklyUse = dailyUse * 7;
-  const phase = Math.floor(rand() * 4);
-  const planned = (weeksAgo: number) => spec.deliveries ? spec.deliveries[weeksAgo] ?? 0 : weeksAgo >= 2 && (weeksAgo + phase) % 4 === 0 ? Math.round(weeklyUse * 4) : 0;
-  const closing = new Array<number>(n).fill(0);
-  const received = new Array<number>(n).fill(0);
-  closing[n - 1] = stock;
-  for (let t = n - 1; t >= 1; t--) {
-    if (stock === 0 && t === n - 1) dispensed[t] = Math.min(dispensed[t], Math.round(weeklyUse * 0.6));
-    const floor = Math.round(weeklyUse * 0.4);
-    received[t] = Math.max(0, Math.min(planned(n - 1 - t), closing[t] + dispensed[t] - floor));
-    closing[t - 1] = closing[t] + dispensed[t] - received[t];
+  if (stock === 0) dispensed[n - 1] = Math.min(dispensed[n - 1], Math.round(weeklyUse * 0.6));
+  let closing: number[], received: number[];
+  if (spec.deliveries) {
+    const planned = (weeksAgo: number) => spec.deliveries?.[weeksAgo] ?? 0;
+    closing = new Array<number>(n).fill(0);
+    received = new Array<number>(n).fill(0);
+    closing[n - 1] = stock;
+    for (let t = n - 1; t >= 1; t--) {
+      const floor = Math.round(weeklyUse * 0.4);
+      received[t] = Math.max(0, Math.min(planned(n - 1 - t), closing[t] + dispensed[t] - floor));
+      closing[t - 1] = closing[t] + dispensed[t] - received[t];
+    }
+    received[0] = planned(n - 1) ? Math.round(weeklyUse * 4) : 0;
+  } else {
+    ({ closing, received } = trajectoryClosings(dispensed, dailyUse, stock, medicine, spec, rand));
   }
-  received[0] = planned(n - 1) ? Math.round(weeklyUse * 4) : 0;
   const history: WeeklyPoint[] = weeks.map((weekOf, i) => ({ weekOf, closingStock: closing[i], dispensed: dispensed[i], received: received[i] }));
   let finalStock = stock;
   if (spec.overrideLastClosing !== undefined) {
@@ -147,21 +186,21 @@ function buildRecord(facility: Facility, medicine: Medicine, spec: RecordSpec, r
 /** Engineered story overrides: facilityId -> medicineId -> spec. */
 const STORY: Record<string, Record<string, RecordSpec>> = {
   // Hero: Saraswati critical, Kalyanpur safe surplus 45, Rampur critical. Numbers fixed by README/docs.
-  saraswati: { "metformin-500": { stock: 16, dailyUse: 8, deliveries: { 4: 230, 8: 220 } } },
-  kalyanpur: { "metformin-500": { stock: 80, dailyUse: 5, deliveries: { 1: 90, 5: 140, 9: 140 } } },
-  rampur: { "metformin-500": { stock: 9, dailyUse: 6, deliveries: { 4: 170, 8: 170 } } },
+  saraswati: { "metformin-500": { stock: 16, dailyUse: 8, healthyDays: 13, dryWeeks: 2 } },
+  kalyanpur: { "metformin-500": { stock: 80, dailyUse: 5, healthyDays: 15 } },
+  rampur: { "metformin-500": { stock: 9, dailyUse: 6, healthyDays: 12, dryWeeks: 2 } },
   // Near-expiry surplus: Anandpur holds amoxicillin it cannot use before expiry; preferred over nearer CHC Ashta.
-  anandpur: { "amoxicillin-500": { days: 44, deliveries: { 3: 220, 8: 120 }, nearExpiry: { quantity: 150, expiresOn: "2026-10-28" } } },
-  lakshmipura: { "amoxicillin-500": { days: 3.2, deliveries: { 4: 130, 8: 140 } } },
+  anandpur: { "amoxicillin-500": { days: 44, healthyDays: 30, nearExpiry: { quantity: 150, expiresOn: "2026-10-28" } } },
+  lakshmipura: { "amoxicillin-500": { days: 3.2 } },
   // Suspicious count: Hirapur reports 168 strips telmisartan; ledger expects ~30.
-  hirapur: { "telmisartan-40": { days: 9.5, deliveries: { 3: 100, 7: 100 }, overrideLastClosing: 168, verified: false } },
-  gopalpura: { "telmisartan-40": { days: 4.2, deliveries: { 4: 80, 8: 80 } } },
+  hirapur: { "telmisartan-40": { days: 9.5, healthyDays: 13, dryWeeks: 2, overrideLastClosing: 168, verified: false } },
+  gopalpura: { "telmisartan-40": { days: 4.2 } },
   // Indent: Kesarpura low on IFA; nobody has IFA surplus but the warehouse does.
-  kesarpura: { "ifa-tablets": { days: 5.5, deliveries: { 3: 220, 7: 240 } }, "amlodipine-5": { days: 0.6 } },
+  kesarpura: { "ifa-tablets": { days: 5.5 }, "amlodipine-5": { days: 0.6 } },
   // Already stocked out: Tulsipur salbutamol; CHC Nasrullaganj can spare.
-  tulsipur: { "salbutamol-inhaler": { stock: 0, deliveries: { 6: 10, 10: 10 } } },
+  tulsipur: { "salbutamol-inhaler": { stock: 0, healthyDays: 18, dryWeeks: 3 } },
   // ORS critical at Madhavgarh with an in-transit transfer from CHC Nasrullaganj.
-  madhavgarh: { "ors-sachet": { days: 1.6, deliveries: { 4: 400, 8: 450 } } },
+  madhavgarh: { "ors-sachet": { days: 1.6, dryWeeks: 1 } },
   // Smaller cases that keep the map lively.
   devgarh: { "atenolol-50": { days: 4 } },
   kamalpur: { "atenolol-50": { days: 6 } },
