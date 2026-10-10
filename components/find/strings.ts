@@ -1,0 +1,71 @@
+// OWNER: find agent. Interface words for /find. Hindi first; plain words a patient would use.
+import type { Lang } from "@/lib/find/copy";
+
+const S = {
+  brand: ["दवा दोस्त", "Dawai Dost"],
+  title: ["दवा कहाँ मिलेगी?", "Where can I get my medicine?"],
+  lede: ["दवा का नाम और अपना गाँव चुनें। हम बताएँगे आज कहाँ मिलेगी।", "Pick the medicine and your village. We tell you where it is in stock today."],
+  modePatient: ["मरीज़", "Patient"],
+  modeAsha: ["आशा", "ASHA"],
+  modeAshaHint: ["एक मरीज़ की सारी दवाएँ एक साथ देखें और SMS भेजें।", "Check all of one patient's medicines at once and send an SMS."],
+  stepMedicine: ["कौन सी दवा?", "Which medicine?"],
+  stepMedicines: ["कौन सी दवाएँ?", "Which medicines?"],
+  stepPlace: ["आप कहाँ हैं?", "Where are you?"],
+  medicinePlaceholder: ["दवा का नाम या बीमारी लिखें", "Medicine name or illness"],
+  medicineExamples: ["जैसे: शुगर की दवा, BP, पैरासिटामोल", "e.g. sugar medicine, BP, paracetamol"],
+  pickOne: ["पर्ची पर जो नाम लिखा है, वह चुनें", "Choose the name written on your prescription"],
+  noMatch: ["यह दवा नहीं मिली। दूसरा नाम लिखकर देखें।", "No medicine matched. Try another name."],
+  change: ["बदलें", "Change"],
+  clear: ["हटाएँ", "Clear"],
+  useLocation: ["मेरी जगह से ढूँढें", "Use my location"],
+  locating: ["जगह ढूँढ रहे हैं…", "Finding your location…"],
+  locationDenied: ["जगह नहीं मिल पाई। नीचे अपना गाँव या ब्लॉक चुनें।", "Could not get your location. Choose your village or block below."],
+  locationFar: ["आप सीहोर ज़िले से दूर लगते हैं। नीचे अपना ब्लॉक चुनें।", "You seem to be outside Sehore district. Choose your block below."],
+  placePlaceholder: ["गाँव या PHC का नाम", "Village or PHC name"],
+  orBlock: ["या अपना ब्लॉक चुनें", "Or choose your block"],
+  servedBy: ["आपका केंद्र", "Your centre"],
+  village: ["गाँव", "village"],
+  block: ["ब्लॉक", "block"],
+  nearestPhc: ["सबसे पास का PHC", "Nearest PHC"],
+  answerFor: ["जवाब", "Answer"],
+  otherCentres: ["पास के दूसरे केंद्र", "Other centres nearby"],
+  showAll: ["सभी केंद्र दिखाएँ", "Show all centres"],
+  showFewer: ["कम दिखाएँ", "Show fewer"],
+  listen: ["सुनें", "Listen"],
+  stop: ["रोकें", "Stop"],
+  patientsReported: ["मरीज़ों ने यहाँ कमी बताई है (जाँच बाकी)", "patients reported it missing here (not verified)"],
+  patientReported: ["एक मरीज़ ने यहाँ कमी बताई है (जाँच बाकी)", "1 patient reported it missing here (not verified)"],
+  reportCta: ["दवा नहीं मिली? बताएँ", "Medicine not given? Tell us"],
+  reportConfirm: ["क्या आप {place} गए थे और {med} नहीं मिली?", "Did you go to {place} and not get {med}?"],
+  reportYes: ["हाँ, बताएँ", "Yes, report it"],
+  reportNo: ["रहने दें", "Cancel"],
+  reportDone: ["धन्यवाद। ज़िला स्वास्थ्य अधिकारी को सूचना भेज दी गई है।", "Thank you. The district health officer has been told."],
+  ask: ["बोलकर पूछें", "Ask by voice"],
+  askHint: ["जैसे: “सरस्वती में शुगर की दवा है क्या?”", "e.g. “Is there sugar medicine at Saraswati?”"],
+  listening: ["सुन रहे हैं… बोलिए", "Listening… speak now"],
+  thinking: ["समझ रहे हैं…", "Understanding…"],
+  youAsked: ["आपने पूछा", "You asked"],
+  voiceUnavailable: ["आवाज़ से पूछना अभी नहीं चल रहा। दवा का नाम लिखकर ढूँढें।", "Voice is not available right now. Type the medicine name instead."],
+  micDenied: ["माइक की अनुमति नहीं मिली। दवा का नाम लिखकर ढूँढें।", "Microphone permission was denied. Type the medicine name instead."],
+  voiceNoMedicine: ["दवा का नाम समझ नहीं आया। फिर से बोलें या लिखें।", "We did not catch the medicine name. Try again or type it."],
+  voiceNeedsPlace: ["अब अपना गाँव या PHC चुनें।", "Now choose your village or PHC."],
+  ashaSelected: ["चुनी गई दवाएँ", "Selected medicines"],
+  ashaEmpty: ["ऊपर से दवाएँ चुनें।", "Choose medicines above."],
+  ashaResults: ["आपके PHC पर", "At your PHC"],
+  smsTitle: ["मरीज़ को भेजने के लिए संदेश", "Message for the patient"],
+  copy: ["कॉपी करें", "Copy"],
+  copied: ["कॉपी हो गया", "Copied"],
+  share: ["भेजें", "Share"],
+  sms: ["SMS से भेजें", "Send by SMS"],
+  demo: ["डेमो डेटा: सभी केंद्र, गाँव और स्टॉक काल्पनिक हैं (सीहोर ज़िला, मध्य प्रदेश)। असली दवा के लिए अपने PHC से पूछें।", "Demo data: every centre, village and stock level here is fictional (Sehore district, Madhya Pradesh). Ask your PHC for real availability."],
+  privacy: ["हम सही गिनती नहीं दिखाते, सिर्फ़ उपलब्ध / कम / खत्म।", "We never show exact counts, only available / low / out."],
+  officerLink: ["ज़िला डैशबोर्ड", "District dashboard"],
+} satisfies Record<string, [string, string]>;
+
+export type StringKey = keyof typeof S;
+
+export function t(key: StringKey, lang: Lang, vars?: Record<string, string>): string {
+  let s = S[key][lang === "hi" ? 0 : 1];
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, v);
+  return s;
+}

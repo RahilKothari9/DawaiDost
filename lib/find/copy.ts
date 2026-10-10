@@ -6,11 +6,18 @@ import { istDaysAgo, istTime, type Band, type FacilityOption, type FindAnswer, t
 export type Lang = "hi" | "en";
 
 const MED_EN = new Map(MEDICINES.map((m) => [m.id, `${m.name} ${m.strength}`]));
+const MED_NAME = new Map(MEDICINES.map((m) => [m.id, m.name]));
 const FAC_EN = new Map(FACILITIES.map((f) => [f.id, f.name]));
 
 export function medName(id: string, lang: Lang): string {
   if (lang === "hi") return MEDICINE_WORDS[id]?.hi ?? MED_EN.get(id) ?? id;
   return MED_EN.get(id) ?? id;
+}
+
+/** Name without strength: "मेटफॉर्मिन" / "Metformin". */
+export function medShort(id: string, lang: Lang): string {
+  if (lang === "hi") return MEDICINE_WORDS[id]?.hi ?? MED_NAME.get(id) ?? id;
+  return MED_NAME.get(id) ?? id;
 }
 
 export function medPurpose(id: string, lang: Lang): string {

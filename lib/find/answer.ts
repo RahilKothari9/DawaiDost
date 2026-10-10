@@ -162,9 +162,12 @@ function option(snapshot: FindSnapshot, origin: Origin, row: SnapshotRow): Facil
   };
 }
 
+/** Unverified patient reports needed before we stop sending people to a place. One report is shown, not acted on. */
+export const PATIENT_REPORTS_TO_DOUBT = 2;
+
 /** A place we can confidently send someone to. */
 export function isUsable(o: FacilityOption): boolean {
-  return o.band !== "out" && o.freshness !== "stale" && o.verified && o.patientReports === 0;
+  return o.band !== "out" && o.freshness !== "stale" && o.verified && o.patientReports < PATIENT_REPORTS_TO_DOUBT;
 }
 
 const LOW_PENALTY_KM = 6; // prefer a well-stocked place unless the low one is much closer

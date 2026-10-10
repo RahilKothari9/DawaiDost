@@ -83,14 +83,17 @@ describe("answers", () => {
   });
 
   it("treats a patient stockout report as a reason not to send people there", () => {
-    const next = districtReducer(state, {
+    const report = (s: typeof state, id: string) => districtReducer(s, {
       type: "ADD_TIMELINE",
-      event: { id: "pr-1", at: state.now, kind: "alert", title: "Patient report", facilityId: "kalyanpur", medicineId: "metformin-500", actor: PATIENT_REPORT_ACTOR },
+      event: { id, at: state.now, kind: "alert", title: "Patient report", facilityId: "kalyanpur", medicineId: "metformin-500", actor: PATIENT_REPORT_ACTOR },
     });
-    const s2 = buildFindSnapshot(next, assessDistrict(next));
-    const a = answerFor(s2, at("kalyanpur"), "metformin-500");
-    expect(a.home?.patientReports).toBe(1);
-    expect(a.homeIssue).toBe("reported_out");
+    const once = report(state, "pr-1");
+    const a1 = answerFor(buildFindSnapshot(once, assessDistrict(once)), at("kalyanpur"), "metformin-500");
+    expect(a1.home?.patientReports).toBe(1);
+    expect(a1.kind).toBe("here"); // one report is shown, not acted on
+    const twice = report(once, "pr-2");
+    const a2 = answerFor(buildFindSnapshot(twice, assessDistrict(twice)), at("kalyanpur"), "metformin-500");
+    expect(a2.homeIssue).toBe("reported_out");
   });
 
   it("measures distance from a village", () => {
