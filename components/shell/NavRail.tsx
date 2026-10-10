@@ -23,7 +23,7 @@ export function NavRail() {
   const officer = state.district.officer;
   const initials = officer.name.replace(/^Dr\.?\s*/, "").split(" ").map((p) => p[0]).join("").slice(0, 2);
   return (
-    <nav className="rail" aria-label="Primary">
+    <nav className={`rail ${process.env.NODE_ENV === "development" ? "is-dev" : ""}`} aria-label="Primary">
       <Link href="/" className="rail__brand">
         <BrandMark size={30} />
         <span className="rail__wordmark">

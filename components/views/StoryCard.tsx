@@ -10,7 +10,7 @@ import { VoiceConsole } from "@/components/voice/VoiceConsole";
 import { DecisionCard } from "@/components/ai/DecisionCard";
 import { TransferFlowMini } from "@/components/map/TransferFlowMini";
 import { Badge, Button } from "@/components/ui";
-import { ACTION_LABEL, fmtDate, fmtDays } from "@/components/shell/format";
+import { ACTION_LABEL, fmtDays } from "@/components/shell/format";
 import { DecisionMark } from "./parts";
 
 type Snapshot = { timeline: Set<string>; decisions: Set<string>; transfers: Set<string>; skipVoice: boolean };
@@ -96,14 +96,13 @@ export function StoryCard() {
   const medName = medicine.name.toLowerCase();
 
   return (
-    <section className="story" id="story" aria-labelledby="story-title">
+    <section className={`story story--${a?.risk ?? "ok"}`} id="story" aria-labelledby="story-title">
       <div className="story__top">
         <div>
           <div className="story__eyebrow">
-            <Badge dot className={`story__risk story__risk--${a?.risk ?? "ok"}`}>
+            <Badge dot tone={a?.risk ?? "ok"}>
               {a?.risk === "stockout" ? "Stocked out" : a?.risk === "critical" ? "Projected stockout" : a?.risk === "low" ? "Thin buffer" : "Covered"}
             </Badge>
-            <span>{target.name} · {target.block} block · {medicine.name} {medicine.strength}</span>
           </div>
           <h2 className="story__title" id="story-title">
             {a?.risk === "stockout" ? (
@@ -120,28 +119,22 @@ export function StoryCard() {
               <>{short} has {fmtDays(days)} days of {medName}. The shelf is covered.</>
             )}
           </h2>
-          <div className="story__facts">
+          <p className="story__facts">
             <span><b>{rec?.stock ?? "—"}</b> {unit}s on the shelf</span>
             <span><b>{rec?.dailyUse ?? "—"}</b> used a day</span>
-            {donor ? <span>{donor.name}, {Math.round(donor.distanceKm)} km away, can spare <b>{donor.transferable}</b></span> : <span>No nearby clinic has safe surplus</span>}
-          </div>
+            {donor ? <span>{donor.name} can spare <b>{donor.transferable}</b></span> : <span>No nearby surplus</span>}
+          </p>
         </div>
         <div className="story__gauge" aria-label={`${fmtDays(days)} days of stock against a ${threshold}-day threshold`}>
-          <span className="story__days num">{fmtDays(days)}<small>days left</small></span>
-          <div>
-            <span className="story__vs">needs {threshold} · empty {a?.projectedStockoutDate ? fmtDate(a.projectedStockoutDate) : "—"}</span>
-            <div className="story__runway" aria-hidden>
-              <i style={{ width: `${Math.min(100, (Math.min(days, threshold * 1.5) / (threshold * 1.5)) * 100)}%` }} />
-              <b style={{ left: `${(threshold / (threshold * 1.5)) * 100}%` }} />
-            </div>
-          </div>
+          <span className="story__days num-display">{fmtDays(days)}</span>
+          <span className="story__vs">days left · needs {threshold}</span>
         </div>
       </div>
 
       <ol className="loop" aria-label="Response loop">
         {STEPS.map((s, i) => (
           <li key={s.key} className={`loop__step ${"ai" in s && s.ai ? "is-ai" : ""} ${stepState(i)}`} aria-current={current === i ? "step" : undefined}>
-            <span className="loop__n">{stepState(i) === "is-done" ? <Check size={12} aria-label="done" /> : `0${i + 1}`}</span>
+            <span className="loop__n">{stepState(i) === "is-done" ? <Check size={12} strokeWidth={3} aria-label="done" /> : i + 1}</span>
             <span className="loop__name">{s.name}</span>
             <span className="loop__by">{s.by}</span>
           </li>
@@ -151,14 +144,18 @@ export function StoryCard() {
       <AnimatePresence mode="wait" initial={false}>
         {!progress ? (
           <motion.div key="cta" className="story__cta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <p>
-              Call the pharmacist in Hindi to confirm the count, let code forecast the gap, and let the Decisions API choose one of four district moves. You approve it.
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Button variant="ghost" size="md" icon={<SkipForward size={15} />} onClick={() => start(true)} style={{ color: "#c9c5b8" }}>
+
+            <div className="story__cta-btns">
+              <Button variant="ghost" size="md" icon={<SkipForward size={15} />} onClick={() => start(true)}>
                 Use today&apos;s count
               </Button>
-              <Button variant="decision" size="lg" icon={<Mic size={16} />} onClick={() => start(false)}>
+              <Button
+                variant="decision"
+                size="lg"
+                icon={<Mic size={16} />}
+                onClick={() => start(false)}
+                title="Call the pharmacist in Hindi, let code forecast the gap, and let the Decisions API pick one of four moves. You approve it."
+              >
                 Run voice check + Decisions API
               </Button>
             </div>
